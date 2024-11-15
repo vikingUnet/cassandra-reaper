@@ -18,6 +18,7 @@
 
 package io.cassandrareaper.storage.cassandra;
 
+import brave.Tracing;
 import io.cassandrareaper.AppContext;
 import io.cassandrareaper.ReaperApplicationConfiguration;
 import io.cassandrareaper.ReaperException;
@@ -53,20 +54,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.datastax.driver.core.CodecRegistry;
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.PoolingOptions;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.QueryLogger;
-import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.Statement;
-import com.datastax.driver.core.VersionNumber;
-import com.datastax.driver.core.WriteType;
-import com.datastax.driver.core.exceptions.DriverException;
-import com.datastax.driver.core.policies.DefaultRetryPolicy;
-import com.datastax.driver.core.policies.RetryPolicy;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
+import com.datastax.oss.driver.api.core.Version;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import io.dropwizard.setup.Environment;
@@ -74,9 +64,9 @@ import io.dropwizard.util.Duration;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import systems.composable.dropwizard.cassandra.CassandraFactory;
-import systems.composable.dropwizard.cassandra.pooling.PoolingOptionsFactory;
-import systems.composable.dropwizard.cassandra.retry.RetryPolicyFactory;
+import io.dropwizard.cassandra.CassandraFactory;
+import io.dropwizard.cassandra.pooling.PoolingOptionsFactory;
+import io.dropwizard.cassandra.retry.RetryPolicyFactory;
 
 
 public final class CassandraStorageFacade implements IStorageDao, IDistributedStorage {
@@ -84,10 +74,9 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
   private static final AtomicBoolean UNINITIALISED = new AtomicBoolean(true);
   public final CassandraRepairSegmentDao cassRepairSegmentDao;
   public final int defaultTimeout;
-  final VersionNumber version;
+  final Version version;
   final UUID reaperInstanceId;
-  private final com.datastax.driver.core.Cluster cassandra;
-  private final Session session;
+  private final CqlSession cassandra;
   private final ObjectMapper objectMapper = new ObjectMapper();
   private final CassandraRepairRunDao cassRepairRunDao;
   private final CassandraRepairUnitDao cassRepairUnitDao;
@@ -115,23 +104,27 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
     overridePoolingOptions(cassandraFactory);
 
     // https://docs.datastax.com/en/developer/java-driver/3.5/manual/metrics/#metrics-4-compatibility
-    cassandraFactory.setJmxEnabled(false);
+    //cassandraFactory.setJmxEnabled(false);
     if (!CassandraStorageFacade.UNINITIALISED.compareAndSet(true, false)) {
       // If there's been a past connection attempt, metrics are already registered
       cassandraFactory.setMetricsEnabled(false);
     }
 
-    cassandra = cassandraFactory.build(environment);
-    if (config.getActivateQueryLogger()) {
+    cassandra = cassandraFactory.build(
+      environment.metrics(),
+      environment.lifecycle(),
+      environment.healthChecks(),
+      Tracing.newBuilder().build());
+    // TODO: Reactivate the query logger
+    /* if (config.getActivateQueryLogger()) {
       cassandra.register(QueryLogger.builder().build());
-    }
-    CodecRegistry codecRegistry = cassandra.getConfiguration().getCodecRegistry();
-    codecRegistry.register(new DateTimeCodec());
-    session = cassandra.connect(config.getCassandraFactory().getKeyspace());
-    version = cassandra.getMetadata().getAllHosts()
+    } */
+    CodecRegistry codecRegistry = cassandra.getContext().getCodecRegistry();
+    codecRegistry.codecFor(new DateTimeCodec());
+    version = cassandra.getMetadata().getNodes().entrySet()
         .stream()
-        .map(h -> h.getCassandraVersion())
-        .min(VersionNumber::compareTo)
+        .map(h -> h.getValue().getCassandraVersion())
+        .min(Version::compareTo)
         .get();
 
     boolean skipMigration = System.getenv().containsKey("REAPER_SKIP_SCHEMA_MIGRATION")
@@ -141,27 +134,27 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
     if (skipMigration) {
       LOG.info("Skipping schema migration as requested.");
     } else {
-      MigrationManager.initializeAndUpgradeSchema(cassandra, session, config, version, mode);
+      MigrationManager.initializeAndUpgradeSchema(cassandra, config, version, mode);
     }
 
-    this.cassEventsDao = new CassandraEventsDao(session);
-    this.cassMetricsDao = new CassandraMetricsDao(session);
-    this.cassSnapshotDao = new CassandraSnapshotDao(session);
-    this.operationsDao = new CassandraOperationsDao(session);
-    this.concurrency = new CassandraConcurrencyDao(version, reaperInstanceId, session);
-    this.cassRepairUnitDao = new CassandraRepairUnitDao(defaultTimeout, session);
-    this.cassRepairSegmentDao = new CassandraRepairSegmentDao(concurrency, cassRepairUnitDao, session);
-    this.cassRepairScheduleDao = new CassandraRepairScheduleDao(cassRepairUnitDao, session);
+    this.cassEventsDao = new CassandraEventsDao(cassandra);
+    this.cassMetricsDao = new CassandraMetricsDao(cassandra);
+    this.cassSnapshotDao = new CassandraSnapshotDao(cassandra);
+    this.operationsDao = new CassandraOperationsDao(cassandra);
+    this.concurrency = new CassandraConcurrencyDao(version, reaperInstanceId, cassandra);
+    this.cassRepairUnitDao = new CassandraRepairUnitDao(defaultTimeout, cassandra);
+    this.cassRepairSegmentDao = new CassandraRepairSegmentDao(concurrency, cassRepairUnitDao, cassandra);
+    this.cassRepairScheduleDao = new CassandraRepairScheduleDao(cassRepairUnitDao, cassandra);
     this.cassClusterDao = new CassandraClusterDao(cassRepairScheduleDao,
         cassRepairUnitDao,
         cassEventsDao,
-        session,
+        cassandra,
         objectMapper);
     this.cassRepairRunDao = new CassandraRepairRunDao(
         cassRepairUnitDao,
         cassClusterDao,
         cassRepairSegmentDao,
-        session,
+        cassandra,
         objectMapper);
     prepareStatements();
   }

@@ -18,6 +18,11 @@
 
 package io.cassandrareaper.storage.metrics;
 
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
 import io.cassandrareaper.core.GenericMetric;
 import io.cassandrareaper.core.PercentRepairedMetric;
 
@@ -26,13 +31,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import com.datastax.driver.core.BatchStatement;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSetFuture;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
 import com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -42,7 +45,7 @@ public class CassandraMetricsDao implements IMetricsDao, IDistributedMetrics {
 
   static final int METRICS_PARTITIONING_TIME_MINS = 10;
   private static final DateTimeFormatter TIME_BUCKET_FORMATTER = DateTimeFormat.forPattern("yyyyMMddHHmm");
-  private final Session session;
+  private final CqlSession session;
   private PreparedStatement storeNodeMetricsPrepStmt;
   private PreparedStatement getNodeMetricsPrepStmt;
   private PreparedStatement getNodeMetricsByNodePrepStmt;
@@ -52,7 +55,7 @@ public class CassandraMetricsDao implements IMetricsDao, IDistributedMetrics {
   private PreparedStatement storePercentRepairedForSchedulePrepStmt;
   private PreparedStatement getPercentRepairedForSchedulePrepStmt;
 
-  public CassandraMetricsDao(Session session) {
+  public CassandraMetricsDao(CqlSession session) {
 
     this.session = session;
     prepareMetricStatements();
@@ -110,7 +113,7 @@ public class CassandraMetricsDao implements IMetricsDao, IDistributedMetrics {
       String metricType,
       long since) {
     List<GenericMetric> metrics = Lists.newArrayList();
-    List<ResultSetFuture> futures = Lists.newArrayList();
+    List<CompletionStage<AsyncResultSet>> futures = Lists.newArrayList();
     List<String> timeBuckets = Lists.newArrayList();
     long now = DateTime.now().getMillis();
     long startTime = since;
@@ -134,19 +137,27 @@ public class CassandraMetricsDao implements IMetricsDao, IDistributedMetrics {
       }
     }
 
-    for (ResultSetFuture future : futures) {
-      for (Row row : future.getUninterruptibly()) {
-        metrics.add(
-            GenericMetric.builder()
-                .withClusterName(row.getString("cluster"))
-                .withHost(row.getString("host"))
-                .withMetricType(row.getString("metric_type"))
-                .withMetricScope(row.getString("metric_scope"))
-                .withMetricName(row.getString("metric_name"))
-                .withMetricAttribute(row.getString("metric_attribute"))
-                .withTs(new DateTime(row.getTimestamp("ts")))
-                .withValue(row.getDouble("value"))
-                .build());
+    for (CompletionStage<AsyncResultSet> future : futures) {
+      try {
+        future.thenCompose(rs -> {
+         for (Row row: rs.currentPage()) {
+           metrics.add(
+             GenericMetric.builder()
+               .withClusterName(row.getString("cluster"))
+               .withHost(row.getString("host"))
+               .withMetricType(row.getString("metric_type"))
+               .withMetricScope(row.getString("metric_scope"))
+               .withMetricName(row.getString("metric_name"))
+               .withMetricAttribute(row.getString("metric_attribute"))
+               .withTs(new DateTime(row.getLocalTime("ts")))
+               .withValue(row.getDouble("value"))
+               .build());
+         }
+        }
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      } catch (ExecutionException e) {
+        throw new RuntimeException(e);
       }
     }
 

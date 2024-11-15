@@ -35,12 +35,13 @@ import javax.ws.rs.DefaultValue;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import io.dropwizard.Configuration;
+import io.dropwizard.cassandra.BasicCassandraFactory;
 import io.dropwizard.client.HttpClientConfiguration;
 import org.apache.cassandra.repair.RepairParallelism;
 import org.hibernate.validator.constraints.NotEmpty;
 import org.secnod.dropwizard.shiro.ShiroConfiguration;
-import systems.composable.dropwizard.cassandra.CassandraFactory;
-import systems.composable.dropwizard.cassandra.network.AddressTranslatorFactory;
+import io.dropwizard.cassandra.CassandraFactory;
+import io.dropwizard.cassandra.network.AddressTranslatorFactory;
 
 public final class ReaperApplicationConfiguration extends Configuration {
 
@@ -156,7 +157,7 @@ public final class ReaperApplicationConfiguration extends Configuration {
   @Nullable
   @JsonProperty
   private Integer numberOfRunsToKeepPerUnit;
-  private CassandraFactory cassandra = new CassandraFactory();
+  private CassandraFactory cassandra = new BasicCassandraFactory();
   @JsonProperty
   private Optional<String> enforcedLocalNode = Optional.empty();
   @JsonProperty
