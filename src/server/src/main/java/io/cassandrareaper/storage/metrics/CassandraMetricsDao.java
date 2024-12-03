@@ -219,7 +219,6 @@ public class CassandraMetricsDao implements IMetricsDao, IDistributedMetrics {
 
   @Override
   public List<PercentRepairedMetric> getPercentRepairedMetrics(String clusterName, UUID repairScheduleId, Long since) {
-    List<ResultSetFuture> futures = Lists.newArrayList();
     List<String> timeBuckets = Lists.newArrayList();
     long now = DateTime.now().getMillis();
     long startTime = since;
@@ -232,31 +231,39 @@ public class CassandraMetricsDao implements IMetricsDao, IDistributedMetrics {
 
     Collections.reverse(timeBuckets);
 
+    List<CompletionStage<AsyncResultSet>> futures = Lists.newArrayList();
     for (String timeBucket : timeBuckets) {
       futures.add(session.executeAsync(
-          getPercentRepairedForSchedulePrepStmt.bind(
-              clusterName,
-              repairScheduleId,
-              timeBucket)));
+        getPercentRepairedForSchedulePrepStmt.bind(
+          clusterName,
+          repairScheduleId,
+          timeBucket)));
     }
 
     List<PercentRepairedMetric> metrics = Lists.newArrayList();
     long maxTimeBucket = 0;
-    for (ResultSetFuture future : futures) {
-      for (Row row : future.getUninterruptibly()) {
-        if (Long.parseLong(row.getString("time_bucket")) >= maxTimeBucket) {
-          // we only want metrics from the latest bucket
-          metrics.add(
+    for (CompletionStage<AsyncResultSet> future : futures) {
+      AsyncResultSet results = future.toCompletableFuture().join();
+      while(true) {
+        for (Row row : results.currentPage()) {
+          if (Long.parseLong(row.getString("time_bucket")) >= maxTimeBucket) {
+            // we only want metrics from the latest bucket
+            metrics.add(
               PercentRepairedMetric.builder()
-                  .withCluster(clusterName)
-                  .withRepairScheduleId(row.getUUID("repair_schedule_id"))
-                  .withKeyspaceName(row.getString("keyspace_name"))
-                  .withTableName(row.getString("table_name"))
-                  .withNode(row.getString("node"))
-                  .withPercentRepaired(row.getInt("percent_repaired"))
-                  .build());
-          maxTimeBucket = Math.max(maxTimeBucket, Long.parseLong(row.getString("time_bucket")));
+                .withCluster(clusterName)
+                .withRepairScheduleId(row.getUuid("repair_schedule_id"))
+                .withKeyspaceName(row.getString("keyspace_name"))
+                .withTableName(row.getString("table_name"))
+                .withNode(row.getString("node"))
+                .withPercentRepaired(row.getInt("percent_repaired"))
+                .build());
+            maxTimeBucket = Math.max(maxTimeBucket, Long.parseLong(row.getString("time_bucket")));
+          }
         }
+        if (!results.hasMorePages()) {
+          break;
+        }
+        results = results.fetchNextPage().toCompletableFuture().join();
       }
       if (!metrics.isEmpty()) {
         break;

@@ -81,7 +81,8 @@ CREATE TABLE IF NOT EXISTS repair_schedule_v1 (
 CREATE TABLE IF NOT EXISTS cluster (
     name text PRIMARY KEY,
     partitioner text,
-    seed_hosts set<text>
+    seed_hosts set<text>,
+    namespace text,
 ) WITH bloom_filter_fp_chance = 0.01
     AND caching = {'keys':'ALL', 'rows_per_partition':'ALL'}
     AND compaction = {'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'}
