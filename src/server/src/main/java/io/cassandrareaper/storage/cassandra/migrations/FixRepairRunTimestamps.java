@@ -19,15 +19,17 @@ package io.cassandrareaper.storage.cassandra.migrations;
 
 import io.cassandrareaper.core.RepairRun;
 
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Date;
 
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SimpleStatement;
-import com.datastax.driver.core.Statement;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.cql.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,26 +43,25 @@ public final class FixRepairRunTimestamps {
   /**
    * fix timestamps in the repair_run table
    */
-  public static void migrate(Session session) {
+  public static void migrate(CqlSession session) {
     LOG.warn("Correcting timestamps in the repair_run table. This may take some minutes…");
 
     Statement getRepairRunPrepStmt
-        = new SimpleStatement("SELECT id,state,start_time,pause_time,end_time FROM repair_run")
-        .setConsistencyLevel(ConsistencyLevel.QUORUM);
+        = SimpleStatement.builder("SELECT id,state,start_time,pause_time,end_time FROM repair_run")
+        .setConsistencyLevel(ConsistencyLevel.QUORUM).build();
 
     PreparedStatement updateRepairRunPrepStmt = session
-        .prepare("INSERT INTO repair_run (id,start_time,pause_time,end_time) VALUES(?, ?, ?, ?)")
-        .setConsistencyLevel(ConsistencyLevel.EACH_QUORUM);
+        .prepare(SimpleStatement.builder("INSERT INTO repair_run (id,start_time,pause_time,end_time) VALUES(?, ?, ?, ?)")
+        .setConsistencyLevel(ConsistencyLevel.EACH_QUORUM).build());
 
     ResultSet resultSet = session.execute(getRepairRunPrepStmt);
     int rowsRead = 0;
     for (Row row : resultSet) {
-      resultSet.fetchMoreResults();
       boolean update = false;
       RepairRun.RunState state = RepairRun.RunState.valueOf(row.getString("state"));
 
       // startTime must be null if repairRun is NOT_STARTED
-      Date startTime = row.getTimestamp("start_time");
+      LocalDateTime startTime = row.get("start_time");
       if (RepairRun.RunState.NOT_STARTED == state && null != startTime) {
         update = true;
         startTime = null;
@@ -69,7 +70,7 @@ public final class FixRepairRunTimestamps {
       // startTime must be set if repairRun is not NOT_STARTED
       if (RepairRun.RunState.NOT_STARTED != state && null == startTime) {
         update = true;
-        startTime = new Date(0);
+        startTime = LocalDateTime.of(0, 0, 0, 0, 0);
       }
 
       // pauseTime can only be set if repairRun is paused

@@ -20,7 +20,6 @@ package io.cassandrareaper.resources.view;
 import io.cassandrareaper.SimpleReaperClient;
 import io.cassandrareaper.core.RepairSchedule;
 
-import com.datastax.driver.core.utils.UUIDs;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import org.apache.cassandra.repair.RepairParallelism;

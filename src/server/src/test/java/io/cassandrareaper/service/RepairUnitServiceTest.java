@@ -40,7 +40,6 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.datastax.driver.core.utils.UUIDs;
 import com.google.common.collect.Sets;
 import org.apache.cassandra.repair.RepairParallelism;
 import org.apache.commons.lang3.RandomStringUtils;

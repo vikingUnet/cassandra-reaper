@@ -18,7 +18,6 @@
 
 package io.cassandrareaper.storage.cassandra;
 
-import brave.Tracing;
 import io.cassandrareaper.AppContext;
 import io.cassandrareaper.ReaperApplicationConfiguration;
 import io.cassandrareaper.ReaperException;
@@ -28,7 +27,7 @@ import io.cassandrareaper.core.RepairSegment;
 import io.cassandrareaper.service.RingRange;
 import io.cassandrareaper.storage.IDistributedStorage;
 import io.cassandrareaper.storage.IStorageDao;
-import io.cassandrareaper.storage.cassandra.codecs.DateTimeCodec;
+import io.cassandrareaper.storage.cassandra.codecs.LocalDateCodec;
 import io.cassandrareaper.storage.cluster.CassandraClusterDao;
 import io.cassandrareaper.storage.cluster.IClusterDao;
 import io.cassandrareaper.storage.events.CassandraEventsDao;
@@ -54,19 +53,31 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import brave.Tracing;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
 import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import com.datastax.oss.driver.api.core.Version;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.retry.RetryDecision;
+import com.datastax.oss.driver.api.core.retry.RetryPolicy;
+import com.datastax.oss.driver.api.core.servererrors.CoordinatorException;
+import com.datastax.oss.driver.api.core.servererrors.WriteType;
+import com.datastax.oss.driver.api.core.session.Request;
+import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import io.dropwizard.cassandra.CassandraFactory;
+import io.dropwizard.cassandra.DropwizardProgrammaticDriverConfigLoaderBuilder;
+import io.dropwizard.cassandra.request.RequestOptionsFactory;
+import io.dropwizard.cassandra.retry.RetryPolicyFactory;
 import io.dropwizard.setup.Environment;
-import io.dropwizard.util.Duration;
+import org.jetbrains.annotations.NotNull;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import io.dropwizard.cassandra.CassandraFactory;
-import io.dropwizard.cassandra.pooling.PoolingOptionsFactory;
-import io.dropwizard.cassandra.retry.RetryPolicyFactory;
 
 
 public final class CassandraStorageFacade implements IStorageDao, IDistributedStorage {
@@ -101,7 +112,6 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
     CassandraFactory cassandraFactory = config.getCassandraFactory();
     overrideQueryOptions(cassandraFactory, mode);
     overrideRetryPolicy(cassandraFactory);
-    overridePoolingOptions(cassandraFactory);
 
     // https://docs.datastax.com/en/developer/java-driver/3.5/manual/metrics/#metrics-4-compatibility
     //cassandraFactory.setJmxEnabled(false);
@@ -120,7 +130,7 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
       cassandra.register(QueryLogger.builder().build());
     } */
     CodecRegistry codecRegistry = cassandra.getContext().getCodecRegistry();
-    codecRegistry.codecFor(new DateTimeCodec());
+    codecRegistry.codecFor(new LocalDateCodec());
     version = cassandra.getMetadata().getNodes().entrySet()
         .stream()
         .map(h -> h.getValue().getCassandraVersion())
@@ -164,41 +174,21 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
     ConsistencyLevel requiredCl = mode.equals(CassandraMode.ASTRA)
         ? ConsistencyLevel.LOCAL_QUORUM
         : ConsistencyLevel.LOCAL_ONE;
-    if (cassandraFactory.getQueryOptions().isPresent()
-        && ConsistencyLevel.LOCAL_ONE != cassandraFactory.getQueryOptions().get().getConsistencyLevel()) {
+    if (!ConsistencyLevel.LOCAL_ONE.toString()
+        .equals(cassandraFactory.getRequestOptionsFactory().getRequestConsistency())) {
       LOG.warn("Customization of cassandra's queryOptions is not supported and will be overridden");
     }
-    cassandraFactory.setQueryOptions(java.util.Optional.of(
-        new QueryOptions()
-            .setConsistencyLevel(requiredCl)
-            .setDefaultIdempotence(true)));
+
+    RequestOptionsFactory requestOptionsFactory = new RequestOptionsFactory();
+    requestOptionsFactory.setRequestConsistency(requiredCl.toString());
+    requestOptionsFactory.setRequestDefaultIdempotence(Boolean.TRUE);
   }
 
   private static void overrideRetryPolicy(CassandraFactory cassandraFactory) {
-    if (cassandraFactory.getRetryPolicy().isPresent()) {
+    if (cassandraFactory.getRetryPolicy() != null) {
       LOG.warn("Customization of cassandra's retry policy is not supported and will be overridden");
     }
-    cassandraFactory.setRetryPolicy(java.util.Optional.of((RetryPolicyFactory) () -> new RetryPolicyImpl()));
-  }
-
-  private static void overridePoolingOptions(CassandraFactory cassandraFactory) {
-    PoolingOptionsFactory newPoolingOptionsFactory = new PoolingOptionsFactory() {
-      @Override
-      public PoolingOptions build() {
-        if (null == getPoolTimeout()) {
-          setPoolTimeout(Duration.minutes(2));
-        }
-        return super.build().setMaxQueueSize(40960);
-      }
-    };
-    cassandraFactory.getPoolingOptions().ifPresent((originalPoolingOptions) -> {
-      newPoolingOptionsFactory.setHeartbeatInterval(originalPoolingOptions.getHeartbeatInterval());
-      newPoolingOptionsFactory.setIdleTimeout(originalPoolingOptions.getIdleTimeout());
-      newPoolingOptionsFactory.setLocal(originalPoolingOptions.getLocal());
-      newPoolingOptionsFactory.setRemote(originalPoolingOptions.getRemote());
-      newPoolingOptionsFactory.setPoolTimeout(originalPoolingOptions.getPoolTimeout());
-    });
-    cassandraFactory.setPoolingOptions(java.util.Optional.of(newPoolingOptionsFactory));
+    cassandraFactory.setRetryPolicy(new ReaperRetryPolicyFactory());
   }
 
   private static boolean withinRange(RepairSegment segment, Optional<RingRange> range) {
@@ -206,21 +196,22 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
   }
 
   private void prepareStatements() {
-    saveHeartbeatPrepStmt = session
+    saveHeartbeatPrepStmt = cassandra
         .prepare(
-            "INSERT INTO running_reapers(reaper_instance_id, reaper_instance_host, last_heartbeat)"
+            SimpleStatement.builder("INSERT INTO running_reapers(reaper_instance_id,"
+                + " reaper_instance_host, last_heartbeat)"
                 + " VALUES(?,?,toTimestamp(now()))")
-        .setIdempotent(false);
-    deleteHeartbeatPrepStmt = session
+              .setIdempotence(false).build());
+    deleteHeartbeatPrepStmt = cassandra
         .prepare(
-            "DELETE FROM running_reapers WHERE reaper_instance_id = ?")
-        .setIdempotent(true);
+          SimpleStatement.builder("DELETE FROM running_reapers WHERE reaper_instance_id = ?")
+            .setIdempotence(true).build());
 
   }
 
   @Override
   public boolean isStorageConnected() {
-    return session != null && !session.isClosed();
+    return cassandra != null && !cassandra.isClosed();
   }
 
   @Override
@@ -285,7 +276,7 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
 
   @Override
   public void saveHeartbeat() {
-    session.executeAsync(
+    cassandra.executeAsync(
         saveHeartbeatPrepStmt.bind(reaperInstanceId, AppContext.REAPER_INSTANCE_ADDRESS));
   }
 
@@ -386,7 +377,7 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
   public void stop() {
     // Statements executed when the server shuts down.
     LOG.info("Reaper is stopping, removing this instance from running reapers...");
-    session.execute(deleteHeartbeatPrepStmt.bind(reaperInstanceId));
+    cassandra.execute(deleteHeartbeatPrepStmt.bind(reaperInstanceId));
   }
 
   @Override
@@ -447,12 +438,20 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
    * <p>
    * Writes keep retrying forever.
    */
+  private static final class ReaperRetryPolicyFactory implements RetryPolicyFactory {
+
+    @Override
+    public void accept(DropwizardProgrammaticDriverConfigLoaderBuilder builder) {
+      builder.withClass(DefaultDriverOption.RETRY_POLICY, RetryPolicyImpl.class);
+    }
+  }
+
   private static final class RetryPolicyImpl implements RetryPolicy {
 
     @Override
     public RetryDecision onReadTimeout(
-        Statement stmt,
-        ConsistencyLevel cl,
+        @NotNull Request request,
+        @NotNull ConsistencyLevel cl,
         int required,
         int received,
         boolean retrieved,
@@ -464,14 +463,14 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
         } catch (InterruptedException expected) {
         }
       }
-      return null != stmt && !Objects.equals(Boolean.FALSE, stmt.isIdempotent())
-          ? retry < 10 ? RetryDecision.retry(cl) : RetryDecision.rethrow()
-          : DefaultRetryPolicy.INSTANCE.onReadTimeout(stmt, cl, required, received, retrieved, retry);
+      return Objects.equals(Boolean.TRUE, request.isIdempotent())
+          ? retry < 10 ? RetryDecision.RETRY_NEXT : RetryDecision.RETHROW
+          : RetryDecision.RETHROW;
     }
 
     @Override
     public RetryDecision onWriteTimeout(
-        Statement stmt,
+        Request request,
         ConsistencyLevel cl,
         WriteType type,
         int required,
@@ -480,23 +479,32 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
 
       Preconditions.checkState(WriteType.CAS != type || ConsistencyLevel.SERIAL == cl);
 
-      return null != stmt && !Objects.equals(Boolean.FALSE, stmt.isIdempotent())
-          ? RetryDecision.retry(cl)
-          : DefaultRetryPolicy.INSTANCE.onWriteTimeout(stmt, cl, type, required, received, retry);
+      return Objects.equals(Boolean.TRUE, request.isIdempotent())
+          ? RetryDecision.RETRY_NEXT
+          : RetryDecision.RETHROW;
     }
 
     @Override
-    public RetryDecision onUnavailable(Statement stmt, ConsistencyLevel cl, int required, int aliveReplica, int retry) {
-      return DefaultRetryPolicy.INSTANCE.onUnavailable(stmt, cl, required, aliveReplica, retry == 1 ? 0 : retry);
+    public RetryDecision onUnavailable(
+        @NotNull Request request,
+        @NotNull ConsistencyLevel consistencyLevel,
+        int required,
+        int received,
+        int retry) {
+      return RetryDecision.RETHROW;
     }
 
     @Override
-    public RetryDecision onRequestError(Statement stmt, ConsistencyLevel cl, DriverException ex, int nbRetry) {
-      return DefaultRetryPolicy.INSTANCE.onRequestError(stmt, cl, ex, nbRetry);
+    public RetryDecision onRequestAborted(@NotNull Request request, @NotNull Throwable throwable, int received) {
+      return RetryDecision.RETHROW;
     }
 
     @Override
-    public void init(com.datastax.driver.core.Cluster cluster) {
+    public RetryDecision onErrorResponse(
+        @NotNull Request request,
+        @NotNull CoordinatorException exception,
+        int received) {
+      return RetryDecision.RETHROW;
     }
 
     @Override

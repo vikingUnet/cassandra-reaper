@@ -50,7 +50,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 
-import com.datastax.driver.core.utils.UUIDs;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;

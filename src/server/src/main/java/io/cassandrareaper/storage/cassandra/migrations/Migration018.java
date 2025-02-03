@@ -17,8 +17,6 @@
 
 package io.cassandrareaper.storage.cassandra.migrations;
 
-import com.datastax.driver.core.Session;
-
 public final class Migration018 {
 
   private Migration018() {

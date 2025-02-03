@@ -17,13 +17,13 @@
 
 package io.cassandrareaper.storage.cassandra.migrations;
 
+import java.util.Map;
+
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.Version;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
 
 public final class Migration021 {
 
@@ -75,11 +75,11 @@ public final class Migration021 {
 
   private static boolean isUsingTwcs(CqlSession session, String keyspace) {
     Map<String, String> compaction = (Map<String, String>) session
-      .getMetadata()
-      .getKeyspace(keyspace).get()
-      .getTable(METRICS_V1_TABLE).get()
-      .getOptions()
-      .get(CqlIdentifier.fromCql("compaction"));
+        .getMetadata()
+        .getKeyspace(keyspace).get()
+        .getTable(METRICS_V1_TABLE).get()
+        .getOptions()
+        .get(CqlIdentifier.fromCql("compaction"));
     return compaction.get("class").equals("TimeWindowCompactionStrategy");
   }
 }

@@ -50,7 +50,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
-import com.datastax.driver.core.utils.UUIDs;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -390,7 +390,7 @@ public final class RepairRunResourceTest {
   public void testTriggerNotExistingRun() throws ReaperException {
     RepairRunResource resource = new RepairRunResource(context, context.storage.getRepairRunDao());
     Optional<String> newState = Optional.of(RepairRun.RunState.RUNNING.toString());
-    Response response = resource.modifyRunState(uriInfo, UUIDs.timeBased(), newState);
+    Response response = resource.modifyRunState(uriInfo, Uuids.timeBased(), newState);
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
     assertTrue(response.getEntity() instanceof String);
     assertTrue(response.getEntity().toString().contains("doesn't exist"));
@@ -500,7 +500,7 @@ public final class RepairRunResourceTest {
   @Test
   public void testPauseNotExistingRun() throws InterruptedException, ReaperException {
     RepairRunResource resource = new RepairRunResource(context, context.storage.getRepairRunDao());
-    Response response = resource.modifyRunState(uriInfo, UUIDs.timeBased(),
+    Response response = resource.modifyRunState(uriInfo, Uuids.timeBased(),
         Optional.of(RepairRun.RunState.PAUSED.toString()));
     assertEquals(Response.Status.NOT_FOUND.getStatusCode(), response.getStatus());
     assertEquals(0, context.storage.getRepairRunDao().getRepairRunsWithState(RepairRun.RunState.RUNNING).size());

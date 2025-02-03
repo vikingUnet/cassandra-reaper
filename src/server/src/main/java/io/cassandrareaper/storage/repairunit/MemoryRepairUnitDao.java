@@ -23,7 +23,6 @@ import io.cassandrareaper.storage.MemoryStorageFacade;
 import java.util.Optional;
 import java.util.UUID;
 
-import com.datastax.driver.core.utils.UUIDs;
 import com.google.common.base.Preconditions;
 
 public class MemoryRepairUnitDao implements IRepairUnitDao {

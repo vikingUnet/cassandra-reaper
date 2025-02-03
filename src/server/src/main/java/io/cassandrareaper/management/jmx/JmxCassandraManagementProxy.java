@@ -85,7 +85,7 @@ import javax.validation.constraints.NotNull;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
-import com.datastax.driver.core.policies.AddressTranslator;
+import com.datastax.oss.driver.api.core.addresstranslation.AddressTranslator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;

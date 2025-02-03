@@ -18,8 +18,6 @@
 
 package io.cassandrareaper.storage.events;
 
-import com.datastax.oss.driver.api.core.cql.PreparedStatement;
-import com.datastax.oss.driver.api.core.cql.Row;
 import io.cassandrareaper.core.DiagEventSubscription;
 
 import java.util.Collection;
@@ -28,6 +26,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.Row;
 import com.google.common.base.Preconditions;
 
 public class CassandraEventsDao implements IEventsDao {

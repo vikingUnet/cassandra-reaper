@@ -27,7 +27,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import com.datastax.driver.core.utils.UUIDs;
 import com.google.common.collect.Lists;
 
 public class MemoryRepairSegmentDao implements IRepairSegmentDao {

@@ -18,8 +18,6 @@
 
 package io.cassandrareaper.storage.cassandra;
 
-import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.Version;
 import io.cassandrareaper.AppContext;
 import io.cassandrareaper.ReaperApplicationConfiguration;
 import io.cassandrareaper.storage.cassandra.migrations.Migration016;
@@ -31,6 +29,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.Version;
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 import org.cognitor.cassandra.migration.Database;
@@ -66,7 +66,7 @@ final class MigrationManager {
       Version version
   ) {
     Preconditions.checkState(
-        0 >= VersionNumber.parse("2.1").compareTo(version),
+        0 >= Version.parse("2.1").compareTo(version),
         "All Cassandra nodes in Reaper's backend storage must be running version 2.1+");
 
     try (Database database = new Database(cassandra, config.getCassandraFactory().getSessionKeyspaceName())) {
@@ -96,10 +96,10 @@ final class MigrationManager {
         // We now only support migrations starting at version 15 (Reaper 1.2.2)
         int startVersion = database.getVersion() == 0 ? 15 : database.getVersion();
         migrate(startVersion,
-          migrationRepo,
-          cassandra,
-          CassandraStorageFacade.CassandraMode.CASSANDRA,
-          config.getCassandraFactory().getSessionKeyspaceName());
+            migrationRepo,
+            cassandra,
+            CassandraStorageFacade.CassandraMode.CASSANDRA,
+            config.getCassandraFactory().getSessionKeyspaceName());
         // some migration steps depend on the Cassandra version, so must be rerun every startup
         Migration016.migrate(cassandra, config.getCassandraFactory().getSessionKeyspaceName());
         // Switch metrics table to TWCS if possible, this is intentionally executed every startup
@@ -135,10 +135,10 @@ final class MigrationManager {
 
         int startVersion = database.getVersion();
         migrate(startVersion,
-          migrationRepo,
-          cassandra,
-          CassandraStorageFacade.CassandraMode.ASTRA,
-          config.getCassandraFactory().getSessionKeyspaceName());
+            migrationRepo,
+            cassandra,
+            CassandraStorageFacade.CassandraMode.ASTRA,
+            config.getCassandraFactory().getSessionKeyspaceName());
       } else {
         LOG.info(
             String.format("Keyspace %s already at schema version %d", cassandra.getKeyspace(), currentVersion));
@@ -176,7 +176,7 @@ final class MigrationManager {
         migration.migrate();
         // after the script execute any MigrationXXX class that exists with the same version number
         Class.forName("io.cassandrareaper.storage.cassandra.Migration" + String.format("%03d", nextVersion))
-            .getDeclaredMethod("migrate", Session.class)
+            .getDeclaredMethod("migrate", CqlSession.class)
             .invoke(null, cassandra, keyspaceName);
 
         LOG.info("executed Migration" + String.format("%03d", nextVersion));

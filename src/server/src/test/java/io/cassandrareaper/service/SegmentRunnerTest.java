@@ -54,7 +54,6 @@ import java.util.concurrent.Future;
 import javax.management.MalformedObjectNameException;
 import javax.management.ReflectionException;
 
-import com.datastax.driver.core.utils.UUIDs;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;

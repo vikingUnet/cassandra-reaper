@@ -20,10 +20,10 @@ package io.cassandrareaper.storage.snapshot;
 
 import io.cassandrareaper.core.Snapshot;
 
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
 import org.joda.time.DateTime;
 
 public class CassandraSnapshotDao implements ISnapshotDao {
@@ -31,9 +31,9 @@ public class CassandraSnapshotDao implements ISnapshotDao {
   PreparedStatement getSnapshotPrepStmt;
   PreparedStatement deleteSnapshotPrepStmt;
   PreparedStatement saveSnapshotPrepStmt;
-  private final Session session;
+  private final CqlSession session;
 
-  public CassandraSnapshotDao(Session session) {
+  public CassandraSnapshotDao(CqlSession session) {
     this.session = session;
     prepareStatements();
   }
@@ -71,11 +71,11 @@ public class CassandraSnapshotDao implements ISnapshotDao {
     Snapshot.Builder snapshotBuilder = Snapshot.builder().withClusterName(clusterName).withName(snapshotName);
 
     ResultSet result = session.execute(getSnapshotPrepStmt.bind(clusterName, snapshotName));
-    for (Row row : result) {
+    for (Row row : result.all() ) {
       snapshotBuilder
           .withCause(row.getString("cause"))
           .withOwner(row.getString("owner"))
-          .withCreationDate(new DateTime(row.getTimestamp("creation_time")));
+          .withCreationDate(new DateTime(row.getLocalTime("creation_time")));
     }
 
     return snapshotBuilder.build();

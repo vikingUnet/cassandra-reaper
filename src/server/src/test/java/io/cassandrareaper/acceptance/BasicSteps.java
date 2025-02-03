@@ -49,13 +49,6 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.sse.SseEventSource;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Host;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SocketOptions;
-import com.datastax.driver.core.VersionNumber;
-import com.datastax.driver.core.exceptions.AlreadyExistsException;
-import com.datastax.driver.core.utils.UUIDs;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;

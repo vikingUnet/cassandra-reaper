@@ -41,7 +41,6 @@ import java.util.stream.IntStream;
 
 import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricRegistry;
-import com.datastax.driver.core.utils.UUIDs;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.cassandra.repair.RepairParallelism;
