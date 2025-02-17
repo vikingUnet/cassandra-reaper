@@ -27,7 +27,6 @@ import io.cassandrareaper.core.RepairSegment;
 import io.cassandrareaper.service.RingRange;
 import io.cassandrareaper.storage.IDistributedStorage;
 import io.cassandrareaper.storage.IStorageDao;
-import io.cassandrareaper.storage.cassandra.codecs.LocalDateCodec;
 import io.cassandrareaper.storage.cluster.CassandraClusterDao;
 import io.cassandrareaper.storage.cluster.IClusterDao;
 import io.cassandrareaper.storage.events.CassandraEventsDao;
@@ -66,7 +65,6 @@ import com.datastax.oss.driver.api.core.retry.RetryPolicy;
 import com.datastax.oss.driver.api.core.servererrors.CoordinatorException;
 import com.datastax.oss.driver.api.core.servererrors.WriteType;
 import com.datastax.oss.driver.api.core.session.Request;
-import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import io.dropwizard.cassandra.CassandraFactory;
@@ -125,12 +123,7 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
       environment.lifecycle(),
       environment.healthChecks(),
       Tracing.newBuilder().build());
-    // TODO: Reactivate the query logger
-    /* if (config.getActivateQueryLogger()) {
-      cassandra.register(QueryLogger.builder().build());
-    } */
-    CodecRegistry codecRegistry = cassandra.getContext().getCodecRegistry();
-    codecRegistry.codecFor(new LocalDateCodec());
+
     version = cassandra.getMetadata().getNodes().entrySet()
         .stream()
         .map(h -> h.getValue().getCassandraVersion())

@@ -18,6 +18,7 @@
 
 package io.cassandrareaper.storage.repairrun;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import io.cassandrareaper.core.RepairRun;
 import io.cassandrareaper.core.RepairSegment;
 import io.cassandrareaper.core.RepairUnit;
@@ -98,7 +99,7 @@ public class MemoryRepairRunDao implements IRepairRunDao {
 
   @Override
   public RepairRun addRepairRun(RepairRun.Builder repairRun, Collection<RepairSegment.Builder> newSegments) {
-    RepairRun newRepairRun = repairRun.build(UUIDs.timeBased());
+    RepairRun newRepairRun = repairRun.build(Uuids.timeBased());
     storage.addRepairRun(newRepairRun);
     memRepairSegment.addRepairSegments(newSegments, newRepairRun.getId());
     return newRepairRun;

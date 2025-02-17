@@ -17,6 +17,12 @@
 
 package io.cassandrareaper.acceptance;
 
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.Version;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.metadata.Node;
+import com.datastax.oss.driver.api.core.servererrors.AlreadyExistsException;
 import io.cassandrareaper.SimpleReaperClient;
 import io.cassandrareaper.core.DiagEventSubscription;
 import io.cassandrareaper.core.DroppedMessages;
@@ -31,12 +37,14 @@ import io.cassandrareaper.service.RepairRunService;
 import io.cassandrareaper.storage.DiagEventSubscriptionMapper;
 import io.cassandrareaper.storage.cassandra.CassandraStorageFacade;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -2185,14 +2193,14 @@ public final class BasicSteps {
   }
 
   private static void createKeyspace(String keyspaceName) {
-    try (Cluster cluster = buildCluster(); Session tmpSession = cluster.connect()) {
-      VersionNumber lowestNodeVersion = getCassandraVersion(tmpSession);
+    try (CqlSession tmpSession = buildSession()) {
+      Version lowestNodeVersion = getCassandraVersion(tmpSession);
 
       try {
-        if (null == tmpSession.getCluster().getMetadata().getKeyspace(keyspaceName)) {
+        if (tmpSession.getMetadata().getKeyspace(keyspaceName)) {
           tmpSession.execute(
               "CREATE KEYSPACE "
-                  + (VersionNumber.parse("2.0").compareTo(lowestNodeVersion) <= 0 ? "IF NOT EXISTS " : "")
+                  + (Version.parse("2.0").compareTo(lowestNodeVersion) <= 0 ? "IF NOT EXISTS " : "")
                   + keyspaceName
                 + " WITH replication = {" + buildNetworkTopologyStrategyString(cluster) + "}");
         }
@@ -2200,11 +2208,11 @@ public final class BasicSteps {
     }
   }
 
-  static String buildNetworkTopologyStrategyString(Cluster cluster) {
+  static String buildNetworkTopologyStrategyString(CqlSession session) {
     Map<String, Integer> ntsMap = Maps.newHashMap();
-    for (Host host : cluster.getMetadata().getAllHosts()) {
-      String dc = host.getDatacenter();
-      ntsMap.put(dc, 1 + ntsMap.getOrDefault(dc, 0));
+    for (host : session.getMetadata().getNodes().entrySet()) {
+      //String dc = host.getDatacenter();
+      //ntsMap.put(dc, 1 + ntsMap.getOrDefault(dc, 0));
     }
     StringBuilder builder = new StringBuilder("'class':'NetworkTopologyStrategy',");
     for (Map.Entry<String, Integer> e : ntsMap.entrySet()) {
@@ -2213,60 +2221,69 @@ public final class BasicSteps {
     return builder.substring(0, builder.length() - 1);
   }
 
-  private static Cluster buildCluster() {
-    return Cluster.builder()
-        .addContactPoint("127.0.0.1")
-        .withSocketOptions(new SocketOptions().setConnectTimeoutMillis(20000).setReadTimeoutMillis(40000))
-        .withoutJMXReporting()
+  private static CqlSession buildSession() {
+    DriverConfigLoader loader =
+      DriverConfigLoader.programmaticBuilder()
+        .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, java.time.Duration.ofSeconds(40))
+        .withDuration(DefaultDriverOption.CONNECTION_CONNECT_TIMEOUT, java.time.Duration.ofSeconds(20))
+        .endProfile()
         .build();
+
+    return CqlSession.builder()
+      .addContactPoints(Collections.singleton(InetSocketAddress.createUnresolved("127.0.0.1", 9042)))
+      .withConfigLoader(loader)
+      .build();
   }
 
-  private static VersionNumber getCassandraVersion() {
-    try (Cluster cluster = buildCluster(); Session tmpSession = cluster.connect()) {
+  private static Version getCassandraVersion() {
+    try (CqlSession tmpSession = buildSession()) {
       return getCassandraVersion(tmpSession);
     }
   }
 
-  private static VersionNumber getCassandraVersion(Session tmpSession) {
+  private static Version getCassandraVersion(CqlSession tmpSession) {
 
     return tmpSession
-            .getCluster()
-            .getMetadata()
-            .getAllHosts()
-            .stream()
-            .map(host -> host.getCassandraVersion())
-            .min(VersionNumber::compareTo)
-            .get();
+      .getMetadata()
+      .getNodes()
+      .values()
+      .stream()
+      .map(Node::getCassandraVersion).filter(Objects::nonNull)
+      .min(Version::compareTo)
+      .get();
   }
 
   private static void createTable(String keyspaceName, String tableName) {
-    try (Cluster cluster = buildCluster(); Session tmpSession = cluster.connect()) {
-      VersionNumber lowestNodeVersion = getCassandraVersion(tmpSession);
+    try (CqlSession tmpSession = buildSession()) {
+      Version lowestNodeVersion = getCassandraVersion(tmpSession);
 
       String createTableStmt
           = "CREATE TABLE "
-              + (VersionNumber.parse("2.0").compareTo(lowestNodeVersion) <= 0 ? "IF NOT EXISTS " : "")
+              + (Version.parse("2.0").compareTo(lowestNodeVersion) <= 0 ? "IF NOT EXISTS " : "")
               + keyspaceName
               + "."
               + tableName
               + "(id int PRIMARY KEY, value text)";
 
       if (tableName.endsWith("twcs")) {
-        if (((VersionNumber.parse("3.0.8").compareTo(lowestNodeVersion) <= 0
-            && VersionNumber.parse("3.0.99").compareTo(lowestNodeVersion) >= 0)
-            || VersionNumber.parse("3.8").compareTo(lowestNodeVersion) <= 0)) {
+        if (((Version.parse("3.0.8").compareTo(lowestNodeVersion) <= 0
+            && Version.parse("3.0.99").compareTo(lowestNodeVersion) >= 0)
+            || Version.parse("3.8").compareTo(lowestNodeVersion) <= 0)) {
           // TWCS is available by default
           createTableStmt
               += " WITH compaction = {'class':'TimeWindowCompactionStrategy',"
                   + "'compaction_window_size': '1', "
                   + "'compaction_window_unit': 'MINUTES'}";
-        } else if (VersionNumber.parse("2.0.11").compareTo(lowestNodeVersion) <= 0) {
+        } else if (Version.parse("2.0.11").compareTo(lowestNodeVersion) <= 0) {
           createTableStmt += " WITH compaction = {'class':'DateTieredCompactionStrategy'}";
         }
       }
 
       try {
-        if (null == tmpSession.getCluster().getMetadata().getKeyspace(keyspaceName).getTable(tableName)) {
+        if (!tmpSession.getMetadata()
+            .getKeyspace(keyspaceName)
+            .flatMap(keyspace -> keyspace.getTable(tableName))
+            .isPresent()) {
           tmpSession.execute(createTableStmt);
         }
       } catch (AlreadyExistsException ignore) { }

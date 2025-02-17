@@ -18,6 +18,7 @@
 
 package io.cassandrareaper.storage.repairschedule;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import io.cassandrareaper.core.RepairSchedule;
 import io.cassandrareaper.core.RepairUnit;
 import io.cassandrareaper.resources.view.RepairScheduleStatus;
@@ -45,7 +46,7 @@ public class MemoryRepairScheduleDao implements IRepairScheduleDao {
 
   @Override
   public RepairSchedule addRepairSchedule(RepairSchedule.Builder repairSchedule) {
-    RepairSchedule newRepairSchedule = repairSchedule.build(UUIDs.timeBased());
+    RepairSchedule newRepairSchedule = repairSchedule.build(Uuids.timeBased());
     storage.addRepairSchedule(newRepairSchedule);
     return newRepairSchedule;
   }

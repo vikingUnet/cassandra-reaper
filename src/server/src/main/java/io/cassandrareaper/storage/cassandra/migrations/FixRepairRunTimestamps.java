@@ -19,9 +19,7 @@ package io.cassandrareaper.storage.cassandra.migrations;
 
 import io.cassandrareaper.core.RepairRun;
 
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Date;
+import java.time.Instant;
 
 import com.datastax.oss.driver.api.core.ConsistencyLevel;
 import com.datastax.oss.driver.api.core.CqlSession;
@@ -29,7 +27,6 @@ import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
-import com.datastax.oss.driver.api.core.cql.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +43,7 @@ public final class FixRepairRunTimestamps {
   public static void migrate(CqlSession session) {
     LOG.warn("Correcting timestamps in the repair_run table. This may take some minutes…");
 
-    Statement getRepairRunPrepStmt
+    SimpleStatement getRepairRunPrepStmt
         = SimpleStatement.builder("SELECT id,state,start_time,pause_time,end_time FROM repair_run")
         .setConsistencyLevel(ConsistencyLevel.QUORUM).build();
 
@@ -61,7 +58,7 @@ public final class FixRepairRunTimestamps {
       RepairRun.RunState state = RepairRun.RunState.valueOf(row.getString("state"));
 
       // startTime must be null if repairRun is NOT_STARTED
-      LocalDateTime startTime = row.get("start_time");
+      Instant startTime = row.getInstant("start_time");
       if (RepairRun.RunState.NOT_STARTED == state && null != startTime) {
         update = true;
         startTime = null;
@@ -70,11 +67,11 @@ public final class FixRepairRunTimestamps {
       // startTime must be set if repairRun is not NOT_STARTED
       if (RepairRun.RunState.NOT_STARTED != state && null == startTime) {
         update = true;
-        startTime = LocalDateTime.of(0, 0, 0, 0, 0);
+        startTime = Instant.EPOCH;
       }
 
       // pauseTime can only be set if repairRun is paused
-      Date pauseTime = row.getTimestamp("pause_time");
+      Instant pauseTime = row.getInstant("pause_time");
       if (RepairRun.RunState.PAUSED != state && null != pauseTime) {
         update = true;
         pauseTime = null;
@@ -87,7 +84,7 @@ public final class FixRepairRunTimestamps {
       }
 
       // endTime can only be set if repairRun is terminated
-      Date endTime = row.getTimestamp("end_time");
+      Instant endTime = row.getInstant("end_time");
       if (!state.isTerminated() && null != endTime) {
         update = true;
         endTime = null;
@@ -101,7 +98,7 @@ public final class FixRepairRunTimestamps {
 
       if (update) {
         session.executeAsync(
-            updateRepairRunPrepStmt.bind(row.getUUID("id"), startTime, pauseTime, endTime));
+            updateRepairRunPrepStmt.bind(row.getUuid("id"), startTime, pauseTime, endTime));
       }
       ++rowsRead;
       if (0 == rowsRead % 1000) {

@@ -18,6 +18,7 @@
 
 package io.cassandrareaper.storage.repairunit;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import io.cassandrareaper.core.RepairUnit;
 
 import java.util.Optional;
@@ -74,7 +75,7 @@ public class CassandraRepairUnitDao implements IRepairUnitDao {
 
   @Override
   public RepairUnit addRepairUnit(RepairUnit.Builder newRepairUnit) {
-    RepairUnit repairUnit = newRepairUnit.build(UUIDs.timeBased());
+    RepairUnit repairUnit = newRepairUnit.build(Uuids.timeBased());
     updateRepairUnit(repairUnit);
 
     repairUnits.put(repairUnit.getId(), repairUnit);

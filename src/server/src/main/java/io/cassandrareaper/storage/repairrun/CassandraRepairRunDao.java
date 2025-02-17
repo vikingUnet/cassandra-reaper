@@ -18,6 +18,7 @@
 
 package io.cassandrareaper.storage.repairrun;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import io.cassandrareaper.core.RepairRun;
 import io.cassandrareaper.core.RepairSegment;
 import io.cassandrareaper.core.RepairUnit;
@@ -138,7 +139,7 @@ public class CassandraRepairRunDao implements IRepairRunDao {
   public RepairRun addRepairRun(
       RepairRun.Builder repairRun,
       Collection<RepairSegment.Builder> newSegments) {
-    RepairRun newRepairRun = repairRun.build(UUIDs.timeBased());
+    RepairRun newRepairRun = repairRun.build(Uuids.timeBased());
     BatchStatementBuilder repairRunBatch = BatchStatement.builder(BatchType.UNLOGGED);
     Boolean isIncremental = null;
 
@@ -164,7 +165,7 @@ public class CassandraRepairRunDao implements IRepairRunDao {
 
     int nbRanges = 0;
     for (RepairSegment.Builder builder : newSegments) {
-      RepairSegment segment = builder.withRunId(newRepairRun.getId()).withId(UUIDs.timeBased()).build();
+      RepairSegment segment = builder.withRunId(newRepairRun.getId()).withId(Uuids.timeBased()).build();
       isIncremental = null == isIncremental ? null != segment.getCoordinatorHost() : isIncremental;
 
       assert RepairSegment.State.NOT_STARTED == segment.getState();

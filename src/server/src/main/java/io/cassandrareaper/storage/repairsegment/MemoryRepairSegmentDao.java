@@ -18,6 +18,7 @@
 
 package io.cassandrareaper.storage.repairsegment;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import io.cassandrareaper.core.RepairSegment;
 import io.cassandrareaper.storage.MemoryStorageFacade;
 
@@ -49,7 +50,7 @@ public class MemoryRepairSegmentDao implements IRepairSegmentDao {
 
   public void addRepairSegments(Collection<RepairSegment.Builder> segments, UUID runId) {
     for (RepairSegment.Builder segment : segments) {
-      RepairSegment newRepairSegment = segment.withRunId(runId).withId(UUIDs.timeBased()).build();
+      RepairSegment newRepairSegment = segment.withRunId(runId).withId(Uuids.timeBased()).build();
       memoryStorageFacade.addRepairSegment(newRepairSegment);
     }
   }

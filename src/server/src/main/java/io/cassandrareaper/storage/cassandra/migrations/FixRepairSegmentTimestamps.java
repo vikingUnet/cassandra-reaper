@@ -17,8 +17,15 @@
 
 package io.cassandrareaper.storage.cassandra.migrations;
 
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import io.cassandrareaper.core.RepairSegment;
 
+import java.time.Instant;
 import java.util.Date;
 
 import org.slf4j.Logger;
@@ -34,30 +41,30 @@ public final class FixRepairSegmentTimestamps {
   /**
    * fix nulls in the repair_run table
    */
-  public static void migrate(Session session) {
+  public static void migrate(CqlSession session) {
     LOG.warn("Removing NULLs in the repair_run table. This may take some minutes…");
 
-    Statement getRepairSegmentsPrepStmt
-        = new SimpleStatement("SELECT id,segment_id,segment_state,segment_start_time,segment_end_time FROM repair_run")
-        .setConsistencyLevel(ConsistencyLevel.QUORUM);
+    SimpleStatement getRepairSegmentsPrepStmt
+        = SimpleStatement.builder("SELECT id,segment_id,segment_state,segment_start_time,segment_end_time FROM "
+        + "repair_run")
+        .setConsistencyLevel(ConsistencyLevel.QUORUM).build();
 
     PreparedStatement updateRepairSegmentPrepStmt = session
-        .prepare("INSERT INTO repair_run (id,segment_id,segment_start_time,segment_end_time)  VALUES(?, ?, ?, ?)")
-        .setConsistencyLevel(ConsistencyLevel.EACH_QUORUM);
+        .prepare(SimpleStatement.builder("INSERT INTO repair_run (id,segment_id,segment_start_time,segment_end_time)  VALUES(?, ?, ?, ?)")
+        .setConsistencyLevel(ConsistencyLevel.EACH_QUORUM).build());
 
     ResultSet resultSet = session.execute(getRepairSegmentsPrepStmt);
     int rowsRead = 0;
     for (Row row : resultSet) {
-      resultSet.fetchMoreResults();
       boolean update = false;
       RepairSegment.State state = RepairSegment.State.values()[row.getInt("segment_state")];
-      Date startTime = row.getTimestamp("segment_start_time");
-      Date endTime = row.getTimestamp("segment_end_time");
+      Instant startTime = row.getInstant("segment_start_time");
+      Instant endTime = row.getInstant("segment_end_time");
 
       // startTime can only be unset if segment is NOT_STARTED
       if (RepairSegment.State.NOT_STARTED != state && null == startTime) {
         update = true;
-        startTime = new Date(0);
+        startTime = Instant.EPOCH;
       }
 
       // endTime can only be set if segment is DONE
@@ -74,7 +81,7 @@ public final class FixRepairSegmentTimestamps {
 
       if (update) {
         session.executeAsync(
-            updateRepairSegmentPrepStmt.bind(row.getUUID("id"), row.getUUID("segment_id"), startTime, endTime));
+            updateRepairSegmentPrepStmt.bind(row.getUuid("id"), row.getUuid("segment_id"), startTime, endTime));
       }
       ++rowsRead;
       if (0 == rowsRead % 1000) {
