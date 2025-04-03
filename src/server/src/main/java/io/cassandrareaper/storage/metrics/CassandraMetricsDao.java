@@ -21,6 +21,7 @@ package io.cassandrareaper.storage.metrics;
 import io.cassandrareaper.core.GenericMetric;
 import io.cassandrareaper.core.PercentRepairedMetric;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -133,7 +134,7 @@ public class CassandraMetricsDao implements IMetricsDao, IDistributedMetrics {
                 .withMetricScope(row.getString("metric_scope"))
                 .withMetricName(row.getString("metric_name"))
                 .withMetricAttribute(row.getString("metric_attribute"))
-                .withTs(new DateTime(row.getLocalTime("ts")))
+                .withTs(new DateTime(row.getInstant("ts").toEpochMilli()))
                 .withValue(row.getDouble("value"))
                 .build());
         }
@@ -269,7 +270,7 @@ public class CassandraMetricsDao implements IMetricsDao, IDistributedMetrics {
         metric.getKeyspaceName(),
         metric.getTableName(),
         metric.getPercentRepaired(),
-        DateTime.now().toDate())
+        Instant.now())
     );
   }
 

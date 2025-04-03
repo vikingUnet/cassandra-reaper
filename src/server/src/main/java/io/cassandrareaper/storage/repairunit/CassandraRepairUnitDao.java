@@ -18,7 +18,6 @@
 
 package io.cassandrareaper.storage.repairunit;
 
-import com.datastax.oss.driver.api.core.uuid.Uuids;
 import io.cassandrareaper.core.RepairUnit;
 
 import java.util.Optional;
@@ -30,6 +29,7 @@ import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;

@@ -48,7 +48,8 @@ public final class FixRepairRunTimestamps {
         .setConsistencyLevel(ConsistencyLevel.QUORUM).build();
 
     PreparedStatement updateRepairRunPrepStmt = session
-        .prepare(SimpleStatement.builder("INSERT INTO repair_run (id,start_time,pause_time,end_time) VALUES(?, ?, ?, ?)")
+        .prepare(SimpleStatement.builder("INSERT INTO repair_run (id,start_time,pause_time,end_time) "
+            + "VALUES(?, ?, ?, ?)")
         .setConsistencyLevel(ConsistencyLevel.EACH_QUORUM).build());
 
     ResultSet resultSet = session.execute(getRepairRunPrepStmt);

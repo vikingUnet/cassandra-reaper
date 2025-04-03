@@ -17,17 +17,16 @@
 
 package io.cassandrareaper.storage.cassandra.migrations;
 
+import io.cassandrareaper.core.RepairSegment;
+
+import java.time.Instant;
+
 import com.datastax.oss.driver.api.core.ConsistencyLevel;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
-import io.cassandrareaper.core.RepairSegment;
-
-import java.time.Instant;
-import java.util.Date;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +49,8 @@ public final class FixRepairSegmentTimestamps {
         .setConsistencyLevel(ConsistencyLevel.QUORUM).build();
 
     PreparedStatement updateRepairSegmentPrepStmt = session
-        .prepare(SimpleStatement.builder("INSERT INTO repair_run (id,segment_id,segment_start_time,segment_end_time)  VALUES(?, ?, ?, ?)")
+        .prepare(SimpleStatement.builder("INSERT INTO repair_run "
+            + "(id,segment_id,segment_start_time,segment_end_time)  VALUES(?, ?, ?, ?)")
         .setConsistencyLevel(ConsistencyLevel.EACH_QUORUM).build());
 
     ResultSet resultSet = session.execute(getRepairSegmentsPrepStmt);

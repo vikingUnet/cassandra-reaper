@@ -25,6 +25,7 @@ import io.cassandrareaper.storage.JsonParseUtils;
 import io.cassandrareaper.storage.cassandra.CassandraConcurrencyDao;
 import io.cassandrareaper.storage.repairunit.CassandraRepairUnitDao;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -112,11 +113,11 @@ public class CassandraRepairSegmentDao implements IRepairSegmentDao {
     if (null != segmentRow.getString("coordinator_host")) {
       builder = builder.withCoordinatorHost(segmentRow.getString("coordinator_host"));
     }
-    if (null != segmentRow.getLocalTime("segment_start_time")) {
-      builder = builder.withStartTime(new DateTime(segmentRow.getLocalTime("segment_start_time")));
+    if (null != segmentRow.getInstant("segment_start_time")) {
+      builder = builder.withStartTime(new DateTime(segmentRow.getInstant("segment_start_time").toEpochMilli()));
     }
-    if (null != segmentRow.getLocalTime("segment_end_time")) {
-      builder = builder.withEndTime(new DateTime(segmentRow.getLocalTime("segment_end_time")));
+    if (null != segmentRow.getInstant("segment_end_time")) {
+      builder = builder.withEndTime(new DateTime(segmentRow.getInstant("segment_end_time").toEpochMilli()));
     }
     if (null != segmentRow.getMap("replicas", String.class, String.class)) {
       builder = builder.withReplicas(segmentRow.getMap("replicas", String.class, String.class));
@@ -224,7 +225,7 @@ public class CassandraRepairSegmentDao implements IRepairSegmentDao {
             segment.getId(),
             segment.getState().ordinal(),
             segment.getCoordinatorHost(),
-            segment.hasStartTime() ? segment.getStartTime().toDate() : null,
+            segment.hasStartTime() ? Instant.ofEpochMilli(segment.getStartTime().getMillis()) : null,
             segment.getFailCount(),
             segment.getHostID()
         )
@@ -248,7 +249,7 @@ public class CassandraRepairSegmentDao implements IRepairSegmentDao {
           insertRepairSegmentEndTimePrepStmt.bind(
               segment.getRunId(),
               segment.getId(),
-              segment.hasEndTime() ? segment.getEndTime().toDate() : null));
+              segment.hasEndTime() ? Instant.ofEpochMilli(segment.getEndTime().getMillis()) : null));
     } else if (RepairSegment.State.STARTED == segment.getState()) {
       updateRepairSegmentBatch.setConsistencyLevel(ConsistencyLevel.EACH_QUORUM);
     }

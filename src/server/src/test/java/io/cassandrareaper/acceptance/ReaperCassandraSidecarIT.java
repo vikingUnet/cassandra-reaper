@@ -111,6 +111,7 @@ public class ReaperCassandraSidecarIT {
 
     return CqlSession.builder()
         .addContactPoints(Collections.singleton(InetSocketAddress.createUnresolved("127.0.0.1", 9042)))
+        .withLocalDatacenter("dc1")
         .withConfigLoader(loader)
         .build();
   }

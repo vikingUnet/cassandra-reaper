@@ -29,9 +29,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import brave.Tracing;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.Version;
 import com.google.common.base.Preconditions;
+import io.dropwizard.cassandra.CassandraFactory;
+import io.dropwizard.core.setup.Environment;
 import org.apache.commons.lang3.StringUtils;
 import org.cognitor.cassandra.migration.Database;
 import org.cognitor.cassandra.migration.MigrationRepository;
@@ -48,26 +51,35 @@ final class MigrationManager {
   }
 
   static void initializeAndUpgradeSchema(
-      CqlSession cassandra,
+      CassandraFactory cassandraFactory,
+      Environment environment,
       ReaperApplicationConfiguration config,
       Version version,
       CassandraStorageFacade.CassandraMode mode) {
 
     if (mode.equals(CassandraStorageFacade.CassandraMode.CASSANDRA)) {
-      initializeCassandraSchema(cassandra, config, version);
+      initializeCassandraSchema(cassandraFactory, environment, config, version);
     } else if (mode.equals(CassandraStorageFacade.CassandraMode.ASTRA)) {
-      initializeAstraSchema(cassandra, config, version);
+      initializeAstraSchema(cassandraFactory, environment, config, version);
     }
   }
 
   static void initializeCassandraSchema(
-      CqlSession cassandra,
+      CassandraFactory cassandraFactory,
+      Environment environment,
       ReaperApplicationConfiguration config,
       Version version
   ) {
     Preconditions.checkState(
         0 >= Version.parse("2.1").compareTo(version),
         "All Cassandra nodes in Reaper's backend storage must be running version 2.1+");
+
+    cassandraFactory.setSessionName("migration");
+    CqlSession cassandra = cassandraFactory.build(
+          environment.metrics(),
+          environment.lifecycle(),
+          environment.healthChecks(),
+          Tracing.newBuilder().build());
 
     try (Database database = new Database(cassandra, config.getCassandraFactory().getSessionKeyspaceName())) {
 
@@ -97,7 +109,8 @@ final class MigrationManager {
         int startVersion = database.getVersion() == 0 ? 15 : database.getVersion();
         migrate(startVersion,
             migrationRepo,
-            cassandra,
+            cassandraFactory,
+            environment,
             CassandraStorageFacade.CassandraMode.CASSANDRA,
             config.getCassandraFactory().getSessionKeyspaceName());
         // some migration steps depend on the Cassandra version, so must be rerun every startup
@@ -117,13 +130,21 @@ final class MigrationManager {
   }
 
   static void initializeAstraSchema(
-      CqlSession cassandra,
+      CassandraFactory cassandraFactory,
+      Environment environment,
       ReaperApplicationConfiguration config,
       Version version
   ) {
     Preconditions.checkState(
         0 >= Version.parse("2.1").compareTo(version),
         "All Cassandra nodes in Reaper's backend storage must be running version 2.1+");
+
+    cassandraFactory.setSessionName("migration");
+    CqlSession cassandra = cassandraFactory.build(
+          environment.metrics(),
+          environment.lifecycle(),
+          environment.healthChecks(),
+          Tracing.newBuilder().build());
 
     try (Database database = new Database(cassandra, config.getCassandraFactory().getSessionKeyspaceName())) {
 
@@ -136,7 +157,8 @@ final class MigrationManager {
         int startVersion = database.getVersion();
         migrate(startVersion,
             migrationRepo,
-            cassandra,
+            cassandraFactory,
+            environment,
             CassandraStorageFacade.CassandraMode.ASTRA,
             config.getCassandraFactory().getSessionKeyspaceName());
       } else {
@@ -149,12 +171,19 @@ final class MigrationManager {
   static void migrate(
       int dbVersion,
       MigrationRepository repository,
-      CqlSession cassandra,
+      CassandraFactory cassandraFactory,
+      Environment environment,
       CassandraStorageFacade.CassandraMode mode,
       String keyspaceName) {
     Preconditions.checkState(dbVersion < repository.getLatestVersion());
 
     for (int i = dbVersion + 1; i <= repository.getLatestVersion(); ++i) {
+      cassandraFactory.setSessionName("migration" + i);
+      CqlSession cassandra = cassandraFactory.build(
+            environment.metrics(),
+            environment.lifecycle(),
+            environment.healthChecks(),
+            Tracing.newBuilder().build());
       final int nextVersion = i;
       String migrationRepoPath = mode
             .equals(CassandraStorageFacade.CassandraMode.CASSANDRA) ? "db/cassandra" : "db/astra";
@@ -171,7 +200,7 @@ final class MigrationManager {
         }
       };
 
-      try (Database database = new Database(cassandra, keyspaceName)) {
+      try (Database database = new Database(cassandra, cassandraFactory.getSessionKeyspaceName())) {
         MigrationTask migration = new MigrationTask(database, migrationRepo, true);
         migration.migrate();
         // after the script execute any MigrationXXX class that exists with the same version number

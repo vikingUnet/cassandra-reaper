@@ -20,11 +20,14 @@ package io.cassandrareaper.storage.snapshot;
 
 import io.cassandrareaper.core.Snapshot;
 
+import java.time.Instant;
+
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import org.joda.time.DateTime;
+
 
 public class CassandraSnapshotDao implements ISnapshotDao {
 
@@ -55,7 +58,7 @@ public class CassandraSnapshotDao implements ISnapshotDao {
             snapshot.getName(),
             snapshot.getOwner().orElse("reaper"),
             snapshot.getCause().orElse("taken with reaper"),
-            snapshot.getCreationDate().get()));
+            Instant.ofEpochMilli(snapshot.getCreationDate().get().getMillis())));
 
     return true;
   }
@@ -75,7 +78,7 @@ public class CassandraSnapshotDao implements ISnapshotDao {
       snapshotBuilder
           .withCause(row.getString("cause"))
           .withOwner(row.getString("owner"))
-          .withCreationDate(new DateTime(row.getLocalTime("creation_time")));
+          .withCreationDate(new DateTime(row.getInstant("creation_time").toEpochMilli()));
     }
 
     return snapshotBuilder.build();

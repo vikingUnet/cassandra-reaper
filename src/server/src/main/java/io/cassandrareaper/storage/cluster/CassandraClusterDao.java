@@ -25,8 +25,9 @@ import io.cassandrareaper.storage.repairschedule.CassandraRepairScheduleDao;
 import io.cassandrareaper.storage.repairunit.CassandraRepairUnitDao;
 
 import java.io.IOException;
-import java.sql.Date;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
@@ -124,7 +125,7 @@ public class CassandraClusterDao implements IClusterDao {
               cluster.getSeedHosts(),
               objectMapper.writeValueAsString(cluster.getProperties()),
               cluster.getState().name(),
-              Date.valueOf(cluster.getLastContact())));
+              Instant.ofEpochSecond(cluster.getLastContact().toEpochDay() * 24 * 60 * 60)));
     } catch (IOException e) {
       LOG.error("Failed serializing cluster information for database write", e);
       throw new IllegalStateException(e);
@@ -181,9 +182,9 @@ public class CassandraClusterDao implements IClusterDao {
         ? objectMapper.readValue(row.getString("properties"), ClusterProperties.class)
         : ClusterProperties.builder().withJmxPort(Cluster.DEFAULT_JMX_PORT).build();
 
-    LocalDate lastContact = row.getLocalTime("last_contact") == null
-        ? LocalDate.MIN
-        : row.getLocalDate("last_contact");
+    Instant lastContact = row.getInstant("last_contact") == null
+        ? Instant.MIN
+        : row.getInstant("last_contact");
 
     Cluster.Builder builder = Cluster.builder()
         .withName(row.getString("name"))
@@ -192,7 +193,7 @@ public class CassandraClusterDao implements IClusterDao {
         .withState(null != row.getString("state")
             ? Cluster.State.valueOf(row.getString("state"))
             : Cluster.State.UNREACHABLE)
-        .withLastContact(lastContact);
+        .withLastContact(LocalDate.ofInstant(lastContact, ZoneId.systemDefault()));
 
     if (null != properties.getJmxCredentials()) {
       builder = builder.withJmxCredentials(properties.getJmxCredentials());

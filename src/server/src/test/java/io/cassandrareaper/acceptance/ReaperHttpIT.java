@@ -18,10 +18,16 @@
 package io.cassandrareaper.acceptance;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
 import cucumber.api.CucumberOptions;
 import cucumber.api.junit.Cucumber;
 import org.junit.AfterClass;
@@ -101,7 +107,7 @@ public class ReaperHttpIT {
   }
 
   public static void initSchema() throws IOException {
-    try (Cluster cluster = buildCluster(); Session tmpSession = cluster.connect()) {
+    try (CqlSession tmpSession = buildSession()) {
       await().with().pollInterval(3, SECONDS).atMost(2, MINUTES).until(() -> {
         try {
           tmpSession.execute("DROP KEYSPACE IF EXISTS reaper_db");
@@ -111,7 +117,7 @@ public class ReaperHttpIT {
         }
       });
       tmpSession.execute(
-          "CREATE KEYSPACE reaper_db WITH replication = {" + BasicSteps.buildNetworkTopologyStrategyString(cluster)
+          "CREATE KEYSPACE reaper_db WITH replication = {" + BasicSteps.buildNetworkTopologyStrategyString(tmpSession)
               + "}");
     }
   }
@@ -123,11 +129,18 @@ public class ReaperHttpIT {
     RUNNER_INSTANCES.forEach(r -> r.runnerInstance.after());
   }
 
-  private static Cluster buildCluster() {
-    return Cluster.builder()
-        .addContactPoint("127.0.0.1")
-        .withSocketOptions(new SocketOptions().setConnectTimeoutMillis(20000).setReadTimeoutMillis(40000))
-        .withoutJMXReporting()
-        .build();
+  private static CqlSession buildSession() {
+    DriverConfigLoader loader =
+        DriverConfigLoader.programmaticBuilder()
+          .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(40))
+          .withDuration(DefaultDriverOption.CONNECTION_CONNECT_TIMEOUT, Duration.ofSeconds(20))
+          .endProfile()
+          .build();
+
+    return CqlSession.builder()
+      .addContactPoints(Collections.singleton(InetSocketAddress.createUnresolved("127.0.0.1", 9042)))
+      .withLocalDatacenter("dc1")
+      .withConfigLoader(loader)
+      .build();
   }
 }

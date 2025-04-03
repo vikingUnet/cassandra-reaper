@@ -17,12 +17,6 @@
 
 package io.cassandrareaper.acceptance;
 
-import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.Version;
-import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
-import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
-import com.datastax.oss.driver.api.core.metadata.Node;
-import com.datastax.oss.driver.api.core.servererrors.AlreadyExistsException;
 import io.cassandrareaper.SimpleReaperClient;
 import io.cassandrareaper.core.DiagEventSubscription;
 import io.cassandrareaper.core.DroppedMessages;
@@ -57,6 +51,13 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.sse.SseEventSource;
 
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.Version;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.metadata.Node;
+import com.datastax.oss.driver.api.core.servererrors.AlreadyExistsException;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -1273,7 +1274,7 @@ public final class BasicSteps {
   @And("^the last added repair has twcs table \"([^\"]*)\" in the blacklist$")
   public void the_last_added_repair_has_twcs_table_in_the_blacklist(String twcsTable) throws Throwable {
     synchronized (BasicSteps.class) {
-      final VersionNumber lowestNodeVersion = getCassandraVersion();
+      final Version lowestNodeVersion = getCassandraVersion();
 
       RUNNERS.parallelStream().forEach(runner -> {
         Response response = runner.callReaper("GET", "/repair_run/cluster/" + TestContext.TEST_CLUSTER, EMPTY_PARAMS);
@@ -1282,10 +1283,10 @@ public final class BasicSteps {
         Assertions.assertThat(responseData).isNotBlank();
         List<RepairRunStatus> runs = SimpleReaperClient.parseRepairRunStatusListJSON(responseData);
         if ((reaperVersion.isPresent()
-            && 0 < VersionNumber.parse("1.4.0").compareTo(VersionNumber.parse(reaperVersion.get())))
+            && 0 < Version.parse("1.4.0").compareTo(Version.parse(reaperVersion.get())))
             // while DTCS is available in 2.0.11 it is not visible over jmx until 2.1
             //  see `Table.DEFAULT_COMPACTION_STRATEGY`
-            || VersionNumber.parse("2.1").compareTo(lowestNodeVersion) > 0) {
+            || Version.parse("2.1").compareTo(lowestNodeVersion) > 0) {
 
           Assertions
               .assertThat(runs.get(0).getColumnFamilies().contains(twcsTable))
@@ -1820,7 +1821,7 @@ public final class BasicSteps {
     synchronized (BasicSteps.class) {
       ReaperTestJettyRunner runner = RUNNERS.get(0);
       Map<String, String> params = Maps.newHashMap();
-      params.put("snapshot_name", UUIDs.timeBased().toString());
+      params.put("snapshot_name", Uuids.timeBased().toString());
       Response response
           = runner.callReaper("POST", "/snapshot/cluster/" + TestContext.TEST_CLUSTER, Optional.of(params));
       assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
@@ -1833,7 +1834,7 @@ public final class BasicSteps {
       ReaperTestJettyRunner runner = RUNNERS.get(0);
       Map<String, String> params = Maps.newHashMap();
       params.put("keyspace", keyspace);
-      params.put("snapshot_name", UUIDs.timeBased().toString());
+      params.put("snapshot_name", Uuids.timeBased().toString());
       Response response
           = runner.callReaper("POST", "/snapshot/cluster/" + TestContext.TEST_CLUSTER, Optional.of(params));
       assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
@@ -1846,7 +1847,7 @@ public final class BasicSteps {
       ReaperTestJettyRunner runner = RUNNERS.get(0);
       Map<String, String> params = Maps.newHashMap();
       params.put("keyspace", keyspace);
-      params.put("snapshot_name", UUIDs.timeBased().toString());
+      params.put("snapshot_name", Uuids.timeBased().toString());
       Response response
           = runner.callReaper("POST", "/snapshot/cluster/" + TestContext.TEST_CLUSTER, Optional.of(params));
       assertEquals(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
@@ -1945,7 +1946,7 @@ public final class BasicSteps {
     synchronized (BasicSteps.class) {
       ReaperTestJettyRunner runner = RUNNERS.get(0);
       Map<String, String> params = Maps.newHashMap();
-      params.put("snapshot_name", UUIDs.timeBased().toString());
+      params.put("snapshot_name", Uuids.timeBased().toString());
       Response response = runner.callReaper(
               "POST",
               "/snapshot/cluster/" + TestContext.TEST_CLUSTER + "/" + TestContext.SEED_HOST.split("@")[0],
@@ -1961,7 +1962,7 @@ public final class BasicSteps {
       ReaperTestJettyRunner runner = RUNNERS.get(0);
       Map<String, String> params = Maps.newHashMap();
       params.put("keyspace", keyspace);
-      params.put("snapshot_name", UUIDs.timeBased().toString());
+      params.put("snapshot_name", Uuids.timeBased().toString());
       Response response = runner.callReaper(
               "POST",
               "/snapshot/cluster/" + TestContext.TEST_CLUSTER + "/" + TestContext.SEED_HOST.split("@")[0],
@@ -1976,7 +1977,7 @@ public final class BasicSteps {
     synchronized (BasicSteps.class) {
       Map<String, String> params = Maps.newHashMap();
       params.put("keyspace", keyspace);
-      params.put("snapshot_name", UUIDs.timeBased().toString());
+      params.put("snapshot_name", Uuids.timeBased().toString());
       callAndExpect(
           "POST",
           "/snapshot/cluster/" + TestContext.TEST_CLUSTER + "/" + TestContext.SEED_HOST.split("@")[0],
@@ -2197,12 +2198,12 @@ public final class BasicSteps {
       Version lowestNodeVersion = getCassandraVersion(tmpSession);
 
       try {
-        if (tmpSession.getMetadata().getKeyspace(keyspaceName)) {
+        if (!tmpSession.getMetadata().getKeyspace(keyspaceName).isPresent()) {
           tmpSession.execute(
               "CREATE KEYSPACE "
                   + (Version.parse("2.0").compareTo(lowestNodeVersion) <= 0 ? "IF NOT EXISTS " : "")
                   + keyspaceName
-                + " WITH replication = {" + buildNetworkTopologyStrategyString(cluster) + "}");
+                + " WITH replication = {" + buildNetworkTopologyStrategyString(tmpSession) + "}");
         }
       } catch (AlreadyExistsException ignore) { }
     }
@@ -2210,10 +2211,10 @@ public final class BasicSteps {
 
   static String buildNetworkTopologyStrategyString(CqlSession session) {
     Map<String, Integer> ntsMap = Maps.newHashMap();
-    for (host : session.getMetadata().getNodes().entrySet()) {
-      //String dc = host.getDatacenter();
-      //ntsMap.put(dc, 1 + ntsMap.getOrDefault(dc, 0));
-    }
+    session.getMetadata().getNodes().entrySet().stream().forEach(host -> {
+      String dc = host.getValue().getDatacenter();
+      ntsMap.put(dc, 1 + ntsMap.getOrDefault(dc, 0));
+    });
     StringBuilder builder = new StringBuilder("'class':'NetworkTopologyStrategy',");
     for (Map.Entry<String, Integer> e : ntsMap.entrySet()) {
       builder.append("'").append(e.getKey()).append("':").append(e.getValue()).append(",");
@@ -2223,14 +2224,15 @@ public final class BasicSteps {
 
   private static CqlSession buildSession() {
     DriverConfigLoader loader =
-      DriverConfigLoader.programmaticBuilder()
-        .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, java.time.Duration.ofSeconds(40))
-        .withDuration(DefaultDriverOption.CONNECTION_CONNECT_TIMEOUT, java.time.Duration.ofSeconds(20))
-        .endProfile()
+        DriverConfigLoader.programmaticBuilder()
+          .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, java.time.Duration.ofSeconds(40))
+          .withDuration(DefaultDriverOption.CONNECTION_CONNECT_TIMEOUT, java.time.Duration.ofSeconds(20))
+          .endProfile()
         .build();
 
     return CqlSession.builder()
       .addContactPoints(Collections.singleton(InetSocketAddress.createUnresolved("127.0.0.1", 9042)))
+      .withLocalDatacenter("dc1")
       .withConfigLoader(loader)
       .build();
   }
@@ -2917,7 +2919,7 @@ public final class BasicSteps {
     RUNNERS.parallelStream().forEach(runner -> {
       callAndExpect(
               "PUT",
-              "/repair_schedule/" + UUIDs.timeBased() + "?state=" + scheduleState,
+              "/repair_schedule/" + Uuids.timeBased() + "?state=" + scheduleState,
               Optional.empty(),
               Optional.empty(),
               Response.Status.NOT_FOUND);
@@ -2941,7 +2943,7 @@ public final class BasicSteps {
     RUNNERS.parallelStream().forEach(runner -> {
       callAndExpect(
           "POST",
-          "/repair_schedule/start/" + UUIDs.timeBased(),
+          "/repair_schedule/start/" + Uuids.timeBased(),
           Optional.empty(),
           Optional.empty(),
           Response.Status.NOT_FOUND);

@@ -46,6 +46,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -101,13 +102,13 @@ public final class RepairManagerTest {
         .datacenters(datacenters)
         .repairThreadCount(repairThreadCount)
         .timeout(segmentTimeout)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
     final RepairRun run = RepairRun.builder(clusterName, cf.getId())
         .intensity(intensity)
         .segmentCount(1)
         .repairParallelism(RepairParallelism.PARALLEL)
         .tables(TABLES)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
     when(mockedRepairRunDao.getRepairRunsWithState(RepairRun.RunState.RUNNING)).thenReturn(Arrays.asList(run));
     when(mockedRepairRunDao.getRepairRunsWithState(RepairRun.RunState.PAUSED)).thenReturn(Collections.emptyList());
     when(storage.getRepairRunDao()).thenReturn(mockedRepairRunDao);
@@ -133,7 +134,7 @@ public final class RepairManagerTest {
     final RepairSegment segment = RepairSegment.builder(
             Segment.builder().withTokenRange(new RingRange("-1", "1")).build(), cf.getId())
         .withRunId(run.getId())
-        .withId(UUIDs.timeBased())
+        .withId(Uuids.timeBased())
         .build();
     IRepairSegmentDao mockedRepairSegmentDao = mock(IRepairSegmentDao.class);
     Mockito.when(context.storage.getRepairSegmentDao()).thenReturn(mockedRepairSegmentDao);
@@ -208,19 +209,19 @@ public final class RepairManagerTest {
         .datacenters(datacenters)
         .repairThreadCount(repairThreadCount)
         .timeout(segmentTimeout)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     final RepairRun run = RepairRun.builder(clusterName, cf.getId())
         .intensity(intensity)
         .segmentCount(1)
         .repairParallelism(RepairParallelism.PARALLEL)
         .tables(TABLES)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     final RepairSegment segment = RepairSegment.builder(
             Segment.builder().withTokenRange(new RingRange("-1", "1")).build(), cf.getId())
         .withRunId(run.getId())
-        .withId(UUIDs.timeBased())
+        .withId(Uuids.timeBased())
         .build();
 
     context.repairManager.repairRunners.put(run.getId(), mock(RepairRunner.class));
@@ -285,7 +286,7 @@ public final class RepairManagerTest {
         .datacenters(datacenters)
         .repairThreadCount(repairThreadCount)
         .timeout(segmentTimeout)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     IRepairUnitDao mockedRepairUnitDao = mock(IRepairUnitDao.class);
     Mockito.when(storage.getRepairUnitDao()).thenReturn(mockedRepairUnitDao);
@@ -311,12 +312,12 @@ public final class RepairManagerTest {
         .segmentCount(1)
         .repairParallelism(RepairParallelism.PARALLEL)
         .tables(TABLES)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     final RepairSegment segment = RepairSegment.builder(
             Segment.builder().withTokenRange(new RingRange("-1", "1")).build(), cf.getId())
         .withRunId(run.getId())
-        .withId(UUIDs.timeBased())
+        .withId(Uuids.timeBased())
         .build();
 
     IRepairSegmentDao mockedRepairSegmentDao = mock(IRepairSegmentDao.class);
@@ -390,19 +391,19 @@ public final class RepairManagerTest {
         .datacenters(datacenters)
         .repairThreadCount(repairThreadCount)
         .timeout(segmentTimeout)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     final RepairRun run = RepairRun.builder(clusterName, cf.getId())
         .intensity(intensity)
         .segmentCount(1)
         .repairParallelism(RepairParallelism.PARALLEL)
         .tables(TABLES)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     final RepairSegment segment = RepairSegment.builder(
             Segment.builder().withTokenRange(new RingRange("-1", "1")).build(), cf.getId())
         .withRunId(run.getId())
-        .withId(UUIDs.timeBased())
+        .withId(Uuids.timeBased())
         .build();
 
     Mockito.doNothing().when(context.repairManager).abortSegments(any(), any());
@@ -471,7 +472,7 @@ public final class RepairManagerTest {
         .datacenters(datacenters)
         .repairThreadCount(repairThreadCount)
         .timeout(segmentTimeout)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     double intensity = 0.5f;
 
@@ -480,7 +481,7 @@ public final class RepairManagerTest {
         .segmentCount(1)
         .repairParallelism(RepairParallelism.PARALLEL)
         .tables(TABLES)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     intensity = 0.1;
     RepairRun updated = context.repairManager.updateRepairRunIntensity(run, intensity);
@@ -590,7 +591,7 @@ public final class RepairManagerTest {
         .datacenters(datacenters)
         .repairThreadCount(repairThreadCount)
         .timeout(segmentTimeout)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     return repairUnit;
   }
@@ -607,7 +608,7 @@ public final class RepairManagerTest {
         .segmentCount(1)
         .repairParallelism(RepairParallelism.PARALLEL)
         .tables(TABLES)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
     return run;
   }
 

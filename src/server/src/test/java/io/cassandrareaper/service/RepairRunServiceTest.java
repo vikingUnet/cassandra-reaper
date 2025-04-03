@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -308,7 +309,7 @@ public final class RepairRunServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(segmentTimeout)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
     List<Segment> segments = repairRunService.generateSegments(cluster, 10, unit);
     assertEquals(32, segments.size());
     assertEquals(3, segments.get(0).getReplicas().keySet().size());
@@ -397,7 +398,7 @@ public final class RepairRunServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(segmentTimeout)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
     List<Segment> segments = repairRunService.generateSegments(cluster, 10, unit);
     assertEquals(32, segments.size());
     assertEquals(3, segments.get(0).getReplicas().keySet().size());
@@ -459,7 +460,7 @@ public final class RepairRunServiceTest {
         .datacenters(DATACENTERS)
         .blacklistedTables(BLACKLISTED_TABLES)
         .repairThreadCount(REPAIR_THREAD_COUNT)
-        .timeout(segmentTimeout).build(UUIDs.timeBased());
+        .timeout(segmentTimeout).build(Uuids.timeBased());
 
     repairRunService.registerRepairRun(
         cluster, repairUnit, Optional.of("cause"), "owner", 10, RepairParallelism.SEQUENTIAL, new Double(1), false);
@@ -527,7 +528,7 @@ public final class RepairRunServiceTest {
         .blacklistedTables(BLACKLISTED_TABLES)
         .repairThreadCount(REPAIR_THREAD_COUNT)
         .incrementalRepair(true)
-        .timeout(segmentTimeout).build(UUIDs.timeBased());
+        .timeout(segmentTimeout).build(Uuids.timeBased());
 
     repairRunService.registerRepairRun(
         cluster, repairUnit, Optional.of("cause"), "owner", 10, RepairParallelism.SEQUENTIAL, new Double(1), false);
@@ -589,7 +590,7 @@ public final class RepairRunServiceTest {
         .blacklistedTables(BLACKLISTED_TABLES)
         .repairThreadCount(REPAIR_THREAD_COUNT)
         .incrementalRepair(true)
-        .timeout(segmentTimeout).build(UUIDs.timeBased());
+        .timeout(segmentTimeout).build(Uuids.timeBased());
     RingRange range1 = new RingRange("1", "2");
     Segment segment = Segment.builder().withBaseRange(range1).withTokenRange(range1).build();
     Map<String, String> dcByNode = repairRunService.getDCsByNodeForRepairSegment(cluster, segment, KS_NAME, repairUnit);
@@ -655,7 +656,7 @@ public final class RepairRunServiceTest {
         .blacklistedTables(BLACKLISTED_TABLES)
         .repairThreadCount(REPAIR_THREAD_COUNT)
         .incrementalRepair(true)
-        .timeout(segmentTimeout).build(UUIDs.timeBased());
+        .timeout(segmentTimeout).build(Uuids.timeBased());
     RingRange range1 = new RingRange("1", "2");
     Segment segment = Segment.builder().withBaseRange(range1).withTokenRange(range1).build();
     repairRunService.getDCsByNodeForRepairSegment(cluster, segment, KS_NAME, repairUnit);
@@ -700,7 +701,7 @@ public final class RepairRunServiceTest {
         .blacklistedTables(BLACKLISTED_TABLES)
         .repairThreadCount(REPAIR_THREAD_COUNT)
         .incrementalRepair(true)
-        .timeout(segmentTimeout).build(UUIDs.timeBased());
+        .timeout(segmentTimeout).build(Uuids.timeBased());
     List<RepairSegment.Builder> segmentBuilders
         = RepairRunService.createRepairSegmentsForIncrementalRepair(nodes, repairUnit, cluster, clusterFacade);
     assertEquals("Not enough segment builders were created", 2, segmentBuilders.size());
@@ -906,7 +907,7 @@ public final class RepairRunServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(segmentTimeout)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
     List<Segment> segments = repairRunService.generateSegments(cluster, 0, unit);
   }
 }

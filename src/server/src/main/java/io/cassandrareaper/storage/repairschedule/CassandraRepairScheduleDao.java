@@ -18,12 +18,12 @@
 
 package io.cassandrareaper.storage.repairschedule;
 
-import com.datastax.oss.driver.api.core.uuid.Uuids;
 import io.cassandrareaper.core.RepairSchedule;
 import io.cassandrareaper.core.RepairUnit;
 import io.cassandrareaper.resources.view.RepairScheduleStatus;
 import io.cassandrareaper.storage.repairunit.CassandraRepairUnitDao;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +39,7 @@ import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -107,17 +108,26 @@ public class CassandraRepairScheduleDao implements IRepairScheduleDao {
   }
 
   private RepairSchedule createRepairScheduleFromRow(Row repairScheduleRow) {
+    DateTime nextActivation = repairScheduleRow.getInstant("next_activation") != null
+        ? new DateTime(repairScheduleRow.getInstant("next_activation").toEpochMilli())
+        : null;
+    DateTime creationTime = repairScheduleRow.getInstant("creation_time") != null
+        ? new DateTime(repairScheduleRow.getInstant("creation_time").toEpochMilli())
+        : null;
+    DateTime pauseTime = repairScheduleRow.getInstant("pause_time") != null
+        ? new DateTime(repairScheduleRow.getInstant("pause_time").toEpochMilli())
+        : null;
     return RepairSchedule.builder(repairScheduleRow.getUuid("repair_unit_id"))
         .state(RepairSchedule.State.valueOf(repairScheduleRow.getString("state")))
         .daysBetween(repairScheduleRow.getInt("days_between"))
-        .nextActivation(new DateTime(repairScheduleRow.getLocalTime("next_activation")))
+        .nextActivation(nextActivation)
         .runHistory(ImmutableList.copyOf(repairScheduleRow.getSet("run_history", UUID.class)))
         .repairParallelism(RepairParallelism.fromName(repairScheduleRow.getString("repair_parallelism")))
         .intensity(repairScheduleRow.getDouble("intensity"))
-        .creationTime(new DateTime(repairScheduleRow.getLocalTime("creation_time")))
+        .creationTime(creationTime)
         .segmentCountPerNode(repairScheduleRow.getInt("segment_count_per_node"))
         .owner(repairScheduleRow.getString("owner"))
-        .pauseTime(new DateTime(repairScheduleRow.getLocalTime("pause_time")))
+        .pauseTime(pauseTime)
         .adaptive(repairScheduleRow.isNull("adaptive") ? false : repairScheduleRow.getBool("adaptive"))
         .percentUnrepairedThreshold(repairScheduleRow.isNull("percent_unrepaired_threshold")
             ? -1
@@ -198,6 +208,17 @@ public class CassandraRepairScheduleDao implements IRepairScheduleDao {
     repairHistory.addAll(newRepairSchedule.getRunHistory());
     RepairUnit repairUnit = cassRepairUnitDao.getRepairUnit(newRepairSchedule.getRepairUnitId());
     List<CompletionStage<AsyncResultSet>> futures = Lists.newArrayList();
+    Instant nextActivation = newRepairSchedule.getNextActivation() != null
+        ? Instant.ofEpochMilli(newRepairSchedule.getNextActivation().getMillis())
+        : null;
+
+    Instant creationTime = newRepairSchedule.getCreationTime() != null
+        ? Instant.ofEpochMilli(newRepairSchedule.getCreationTime().getMillis())
+        : null;
+
+    Instant pauseTime = newRepairSchedule.getPauseTime() != null
+        ? Instant.ofEpochMilli(newRepairSchedule.getPauseTime().getMillis())
+        : null;
 
     futures.add(
         session.executeAsync(
@@ -206,12 +227,12 @@ public class CassandraRepairScheduleDao implements IRepairScheduleDao {
                 newRepairSchedule.getRepairUnitId(),
                 newRepairSchedule.getState().toString(),
                 newRepairSchedule.getDaysBetween(),
-                newRepairSchedule.getNextActivation(),
+                nextActivation,
                 newRepairSchedule.getRepairParallelism().toString(),
                 newRepairSchedule.getIntensity(),
-                newRepairSchedule.getCreationTime(),
+                creationTime,
                 newRepairSchedule.getOwner(),
-                newRepairSchedule.getPauseTime(),
+                pauseTime,
                 newRepairSchedule.getSegmentCountPerNode(),
                 newRepairSchedule.getAdaptive(),
                 newRepairSchedule.getPercentUnrepairedThreshold(),

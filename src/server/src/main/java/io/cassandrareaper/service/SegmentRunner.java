@@ -387,6 +387,7 @@ final class SegmentRunner implements RepairStatusHandler, Runnable {
     try {
       final long startTime = System.currentTimeMillis();
       final long maxTime = startTime + segmentTimeout;
+
       final long waitTime = Math.min(segmentTimeout, 60000);
 
       while (System.currentTimeMillis() < maxTime) {

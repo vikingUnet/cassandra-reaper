@@ -18,7 +18,6 @@
 
 package io.cassandrareaper.storage.repairrun;
 
-import com.datastax.oss.driver.api.core.uuid.Uuids;
 import io.cassandrareaper.core.RepairRun;
 import io.cassandrareaper.core.RepairSegment;
 import io.cassandrareaper.core.RepairUnit;
@@ -27,6 +26,7 @@ import io.cassandrareaper.storage.cluster.CassandraClusterDao;
 import io.cassandrareaper.storage.repairsegment.CassandraRepairSegmentDao;
 import io.cassandrareaper.storage.repairunit.CassandraRepairUnitDao;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,6 +48,7 @@ import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -143,6 +144,18 @@ public class CassandraRepairRunDao implements IRepairRunDao {
     BatchStatementBuilder repairRunBatch = BatchStatement.builder(BatchType.UNLOGGED);
     Boolean isIncremental = null;
 
+    Instant creationTime = newRepairRun.getCreationTime() != null
+        ? Instant.ofEpochMilli(newRepairRun.getCreationTime().getMillis())
+        : null;
+    Instant startTime = newRepairRun.getStartTime() != null
+        ? Instant.ofEpochMilli(newRepairRun.getStartTime().getMillis())
+        : null;
+    Instant endTime = newRepairRun.getEndTime() != null
+        ? Instant.ofEpochMilli(newRepairRun.getEndTime().getMillis())
+        : null;
+    Instant pauseTime = newRepairRun.getPauseTime() != null
+        ? Instant.ofEpochMilli(newRepairRun.getPauseTime().getMillis())
+        : null;
     List<CompletionStage<AsyncResultSet>> futures = Lists.newArrayList();
     repairRunBatch.addStatement(
         insertRepairRunPrepStmt.bind(
@@ -152,10 +165,10 @@ public class CassandraRepairRunDao implements IRepairRunDao {
             newRepairRun.getCause(),
             newRepairRun.getOwner(),
             newRepairRun.getRunState().toString(),
-            newRepairRun.getCreationTime(),
-            newRepairRun.getStartTime(),
-            newRepairRun.getEndTime(),
-            newRepairRun.getPauseTime(),
+            creationTime,
+            startTime,
+            endTime,
+            pauseTime,
             newRepairRun.getIntensity(),
             newRepairRun.getLastEvent(),
             newRepairRun.getSegmentCount(),
@@ -249,6 +262,18 @@ public class CassandraRepairRunDao implements IRepairRunDao {
 
   @Override
   public boolean updateRepairRun(RepairRun repairRun, Optional<Boolean> updateRepairState) {
+    Instant creationTime = repairRun.getCreationTime() != null
+        ? Instant.ofEpochMilli(repairRun.getCreationTime().getMillis())
+        : null;
+    Instant startTime = repairRun.getStartTime() != null
+        ? Instant.ofEpochMilli(repairRun.getStartTime().getMillis())
+        : null;
+    Instant endTime = repairRun.getEndTime() != null
+        ? Instant.ofEpochMilli(repairRun.getEndTime().getMillis())
+        : null;
+    Instant pauseTime = repairRun.getPauseTime() != null
+        ? Instant.ofEpochMilli(repairRun.getPauseTime().getMillis())
+        : null;
     if (updateRepairState.orElse(true)) {
       BatchStatementBuilder updateRepairRunBatch = BatchStatement.builder(BatchType.LOGGED);
       // Updates of the last event impact the repair state.
@@ -256,7 +281,6 @@ public class CassandraRepairRunDao implements IRepairRunDao {
       updateRepairRunBatch.addStatement(
           insertRepairRunClusterIndexPrepStmt.bind(
               repairRun.getClusterName(), repairRun.getId(), repairRun.getRunState().toString()));
-      // Repair state will be updated
       updateRepairRunBatch.addStatement(
           insertRepairRunPrepStmt.bind(
               repairRun.getId(),
@@ -265,10 +289,10 @@ public class CassandraRepairRunDao implements IRepairRunDao {
               repairRun.getCause(),
               repairRun.getOwner(),
               repairRun.getRunState().toString(),
-              repairRun.getCreationTime(),
-              repairRun.getStartTime(),
-              repairRun.getEndTime(),
-              repairRun.getPauseTime(),
+              creationTime,
+              startTime,
+              endTime,
+              pauseTime,
               repairRun.getIntensity(),
               repairRun.getLastEvent(),
               repairRun.getSegmentCount(),
@@ -284,7 +308,7 @@ public class CassandraRepairRunDao implements IRepairRunDao {
               repairRun.getRepairUnitId(),
               repairRun.getCause(),
               repairRun.getOwner(),
-              repairRun.getCreationTime(),
+              creationTime,
               repairRun.getIntensity(),
               repairRun.getLastEvent(),
               repairRun.getSegmentCount(),
@@ -313,20 +337,20 @@ public class CassandraRepairRunDao implements IRepairRunDao {
   public RepairRun buildRepairRunFromRow(Row repairRunResult, UUID id) {
     LOG.trace("buildRepairRunFromRow {} / {}", id, repairRunResult);
 
-    DateTime startTime = new DateTime(repairRunResult.getLocalTime("start_time"));
-    DateTime pauseTime = new DateTime(repairRunResult.getLocalTime("pause_time"));
-    DateTime endTime = new DateTime(repairRunResult.getLocalTime("end_time"));
+    Instant startTime = repairRunResult.getInstant("start_time");
+    Instant pauseTime = repairRunResult.getInstant("pause_time");
+    Instant endTime = repairRunResult.getInstant("end_time");
 
     return RepairRun.builder(repairRunResult.getString("cluster_name"), repairRunResult.getUuid("repair_unit_id"))
-        .creationTime(new DateTime(repairRunResult.getLocalTime("creation_time")))
+        .creationTime(new DateTime(repairRunResult.getInstant("creation_time").toEpochMilli()))
         .intensity(repairRunResult.getDouble("intensity"))
         .segmentCount(repairRunResult.getInt("segment_count"))
         .repairParallelism(RepairParallelism.fromName(repairRunResult.getString("repair_parallelism")))
         .cause(repairRunResult.getString("cause"))
         .owner(repairRunResult.getString("owner"))
-        .startTime(null != startTime ? startTime : null)
-        .pauseTime(null != pauseTime ? pauseTime : null)
-        .endTime(null != endTime ? endTime : null)
+        .startTime(null != startTime ? new DateTime(startTime.toEpochMilli()) : null)
+        .pauseTime(null != pauseTime ? new DateTime(pauseTime.toEpochMilli()) : null)
+        .endTime(null != endTime ? new DateTime(endTime.toEpochMilli()) : null)
         .lastEvent(repairRunResult.getString("last_event"))
         .runState(RepairRun.RunState.valueOf(repairRunResult.getString("state")))
         .tables(repairRunResult.getSet("tables", String.class))

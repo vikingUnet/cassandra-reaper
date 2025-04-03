@@ -54,6 +54,7 @@ import java.util.concurrent.Future;
 import javax.management.MalformedObjectNameException;
 import javax.management.ReflectionException;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -1113,7 +1114,7 @@ public final class SegmentRunnerTest {
 
   @Test(expected = ReaperException.class)
   public void alreadyRunningSegmentRunnerCreationFailure() throws ReaperException {
-    UUID segmentId = UUIDs.timeBased();
+    UUID segmentId = Uuids.timeBased();
     SegmentRunner.SEGMENT_RUNNERS.put(segmentId, mock(SegmentRunner.class));
     SegmentRunner.create(
         mock(AppContext.class),
@@ -1327,7 +1328,7 @@ public final class SegmentRunnerTest {
     context.storage = storage;
 
     RepairRunner rr = mock(RepairRunner.class);
-    when(rr.getRepairRunId()).thenReturn(UUIDs.timeBased());
+    when(rr.getRepairRunId()).thenReturn(Uuids.timeBased());
     RepairUnit ru = mock(RepairUnit.class);
     RepairSegment segment = mock(RepairSegment.class);
     when(segment.getStartTime()).thenReturn(DateTime.now());
@@ -1341,7 +1342,7 @@ public final class SegmentRunnerTest {
     ClusterFacade clusterFacade = mock(ClusterFacade.class);
 
     SegmentRunner sr = SegmentRunner
-        .create(context, clusterFacade, UUIDs.timeBased(), COORDS, 5000, 0.5, PARALLEL, "reaper", ru, TABLES, rr);
+        .create(context, clusterFacade, Uuids.timeBased(), COORDS, 5000, 0.5, PARALLEL, "reaper", ru, TABLES, rr);
 
     assertEquals("Intensity could apply fine although it shouldn't", 0, sr.intensityBasedDelayMillis(new Double(1)));
   }
@@ -1422,7 +1423,7 @@ public final class SegmentRunnerTest {
     SegmentRunner sr = SegmentRunner
         .create(context, clusterFacade, segmentId, COORDS, 5000, 0.5, PARALLEL, "reaper", ru, TABLES, rr);
 
-    sr.tryClearSnapshots(UUIDs.timeBased().toString());
+    sr.tryClearSnapshots(Uuids.timeBased().toString());
     Mockito.verify(jmx, Mockito.times(1)).clearSnapshot(any(), any());
   }
 
@@ -1485,7 +1486,7 @@ public final class SegmentRunnerTest {
     SegmentRunner sr = SegmentRunner
         .create(context, clusterFacade, segmentId, COORDS, 5000, 0.5, PARALLEL, "reaper", ru, TABLES, rr);
 
-    sr.tryClearSnapshots(UUIDs.timeBased().toString());
+    sr.tryClearSnapshots(Uuids.timeBased().toString());
     Mockito.verify(storageServiceMbeanMock, Mockito.times(0)).clearSnapshot(any(), any());
   }
 }

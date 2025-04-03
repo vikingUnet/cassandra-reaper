@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.google.common.collect.Sets;
 import org.apache.cassandra.repair.RepairParallelism;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -108,7 +109,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     assertEquals(Sets.newHashSet("table2", "table3"), service.getTablesToRepair(cluster, unit));
   }
@@ -133,7 +134,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     assertEquals(Sets.newHashSet("table2", "table3"), service.getTablesToRepair(cluster, unit));
   }
@@ -157,7 +158,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     assertEquals(Sets.newHashSet("table2", "table3"), service.getTablesToRepair(cluster, unit));
   }
@@ -182,7 +183,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     assertEquals(Sets.newHashSet("table2"), service.getTablesToRepair(cluster, unit));
   }
@@ -207,7 +208,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     assertEquals(Sets.newHashSet("table2"), service.getTablesToRepair(cluster, unit));
   }
@@ -233,7 +234,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     assertEquals(Sets.newHashSet("table2"), service.getTablesToRepair(cluster, unit));
   }
@@ -259,7 +260,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     assertEquals(Sets.newHashSet("table2"), service.getTablesToRepair(cluster, unit));
   }
@@ -284,7 +285,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     service.getTablesToRepair(cluster, unit);
   }
@@ -311,7 +312,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     service.getTablesToRepair(cluster, unit);
   }
@@ -338,7 +339,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -375,7 +376,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -409,7 +410,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -441,7 +442,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -475,7 +476,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -512,7 +513,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -563,7 +564,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -601,7 +602,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -646,7 +647,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -690,7 +691,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -730,7 +731,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -764,7 +765,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -797,7 +798,7 @@ public final class RepairUnitServiceTest {
         .subrangeIncrementalRepair(false)
         .repairThreadCount(4)
         .timeout(30)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     RepairUnit.Builder unitBuilder = RepairUnit.builder()
         .clusterName(cluster.getName())
@@ -882,7 +883,7 @@ public final class RepairUnitServiceTest {
         .repairThreadCount(4)
         .timeout(30);
 
-    RepairUnit repairUnit = unitBuilder.build(UUIDs.timeBased());
+    RepairUnit repairUnit = unitBuilder.build(Uuids.timeBased());
     when(mockedRepairUnitDao.getRepairUnit(any(UUID.class))).thenReturn(repairUnit);
 
     RepairSchedule repairSchedule = RepairSchedule.builder(repairUnit.getId())
@@ -891,7 +892,7 @@ public final class RepairUnitServiceTest {
         .repairParallelism(RepairParallelism.PARALLEL)
         .intensity(1)
         .segmentCountPerNode(10)
-        .build(UUIDs.timeBased());
+        .build(Uuids.timeBased());
 
     IRepairScheduleDao mockedRepairScheduleDao = Mockito.mock(IRepairScheduleDao.class);
     Mockito.when(localContext.storage.getRepairScheduleDao()).thenReturn(mockedRepairScheduleDao);

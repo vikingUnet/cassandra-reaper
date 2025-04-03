@@ -64,6 +64,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.management.MalformedObjectNameException;
 import javax.management.ReflectionException;
 
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -1478,7 +1479,7 @@ public final class RepairRunnerTest {
         .build(UUID.randomUUID());
 
     // The allowed run time UUID will be the first one generated
-    UUID allowedRun = UUIDs.timeBased();
+    UUID allowedRun = Uuids.timeBased();
     RepairRun run = RepairRun.builder(cluster.getName(), repairUnit.getId())
         .intensity(intensity)
         .segmentCount(100)
@@ -1503,7 +1504,7 @@ public final class RepairRunnerTest {
 
     List<UUID> runningRepairs = Lists.newArrayList();
     for (int i = 0; i < 3; i++) {
-      runningRepairs.add(UUIDs.timeBased());
+      runningRepairs.add(Uuids.timeBased());
     }
     runningRepairs.add(allowedRun);
 
@@ -1567,10 +1568,10 @@ public final class RepairRunnerTest {
 
     List<UUID> runningRepairs = Lists.newArrayList();
     for (int i = 0; i < 3; i++) {
-      runningRepairs.add(UUIDs.timeBased());
+      runningRepairs.add(Uuids.timeBased());
     }
 
-    UUID unallowedRun = UUIDs.timeBased();
+    UUID unallowedRun = Uuids.timeBased();
     RepairRun run = RepairRun.builder(cluster.getName(), repairUnit.getId())
         .intensity(intensity)
         .segmentCount(100)

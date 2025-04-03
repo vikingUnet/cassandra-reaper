@@ -71,7 +71,7 @@ import io.dropwizard.cassandra.CassandraFactory;
 import io.dropwizard.cassandra.DropwizardProgrammaticDriverConfigLoaderBuilder;
 import io.dropwizard.cassandra.request.RequestOptionsFactory;
 import io.dropwizard.cassandra.retry.RetryPolicyFactory;
-import io.dropwizard.setup.Environment;
+import io.dropwizard.core.setup.Environment;
 import org.jetbrains.annotations.NotNull;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -109,7 +109,7 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
     this.defaultTimeout = config.getHangingRepairTimeoutMins();
     CassandraFactory cassandraFactory = config.getCassandraFactory();
     overrideQueryOptions(cassandraFactory, mode);
-    overrideRetryPolicy(cassandraFactory);
+    //overrideRetryPolicy(cassandraFactory);
 
     // https://docs.datastax.com/en/developer/java-driver/3.5/manual/metrics/#metrics-4-compatibility
     //cassandraFactory.setJmxEnabled(false);
@@ -118,6 +118,7 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
       cassandraFactory.setMetricsEnabled(false);
     }
 
+    cassandraFactory.setSessionName("main");
     cassandra = cassandraFactory.build(
       environment.metrics(),
       environment.lifecycle(),
@@ -137,7 +138,7 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
     if (skipMigration) {
       LOG.info("Skipping schema migration as requested.");
     } else {
-      MigrationManager.initializeAndUpgradeSchema(cassandra, config, version, mode);
+      MigrationManager.initializeAndUpgradeSchema(cassandraFactory, environment, config, version, mode);
     }
 
     this.cassEventsDao = new CassandraEventsDao(cassandra);
@@ -167,10 +168,10 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
     ConsistencyLevel requiredCl = mode.equals(CassandraMode.ASTRA)
         ? ConsistencyLevel.LOCAL_QUORUM
         : ConsistencyLevel.LOCAL_ONE;
-    if (!ConsistencyLevel.LOCAL_ONE.toString()
+    /* if (!ConsistencyLevel.LOCAL_ONE.toString()
         .equals(cassandraFactory.getRequestOptionsFactory().getRequestConsistency())) {
       LOG.warn("Customization of cassandra's queryOptions is not supported and will be overridden");
-    }
+    } */
 
     RequestOptionsFactory requestOptionsFactory = new RequestOptionsFactory();
     requestOptionsFactory.setRequestConsistency(requiredCl.toString());
