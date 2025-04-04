@@ -611,11 +611,10 @@ public final class RepairRunnerTest {
         TimeUnit.MILLISECONDS,
         1,
         context.storage.getRepairRunDao());
-    AtomicInteger repairNumberCounter = new AtomicInteger(1);
     when(jmx.triggerRepair(any(), any(), any(), any(), any(), any(), any(), anyInt()))
         .then(
             (invocation) -> {
-              final int repairNumber = repairNumberCounter.getAndIncrement();
+              final int repairNumber = 0;
               new Thread() {
                 @Override
                 public void run() {

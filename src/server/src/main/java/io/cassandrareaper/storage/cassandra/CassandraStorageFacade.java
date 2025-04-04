@@ -65,6 +65,7 @@ import com.datastax.oss.driver.api.core.retry.RetryPolicy;
 import com.datastax.oss.driver.api.core.servererrors.CoordinatorException;
 import com.datastax.oss.driver.api.core.servererrors.WriteType;
 import com.datastax.oss.driver.api.core.session.Request;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import io.dropwizard.cassandra.CassandraFactory;
@@ -118,7 +119,7 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
       cassandraFactory.setMetricsEnabled(false);
     }
 
-    cassandraFactory.setSessionName("main");
+    cassandraFactory.setSessionName("main-" + Uuids.random());
     cassandra = cassandraFactory.build(
       environment.metrics(),
       environment.lifecycle(),

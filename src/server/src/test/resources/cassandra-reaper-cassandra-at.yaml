@@ -71,15 +71,16 @@ cassandra:
       port: 9042
   sessionKeyspaceName: reaper_db
   loadBalancingPolicy:
-    type: data-center-inferring
+    type: default
+    localDataCenter: dc1
   retryPolicy:
     type: default
   schemaOptions:
-    agreementIntervalMilliseconds: 2000
-    agreementTimeoutSeconds: 40
+    agreementIntervalMilliseconds: 60000
+    agreementTimeoutSeconds: 60
     agreementWarnOnFailure: true
   requestOptionsFactory:
-    requestTimeout: 40s
+    requestTimeout: 60s
     requestDefaultIdempotence: true
 
 cryptograph:

@@ -118,6 +118,11 @@ public class CassandraClusterDao implements IClusterDao {
   public boolean addCluster(Cluster cluster) {
     assert addClusterAssertions(cluster);
     try {
+      Instant lastContact = cluster.getLastContact().atStartOfDay(ZoneId.systemDefault()).toInstant();
+      if (cluster.getLastContact().equals(LocalDate.MIN)) {
+        lastContact = Instant.now();
+      }
+
       session.execute(
           insertClusterPrepStmt.bind(
               cluster.getName(),
@@ -125,7 +130,7 @@ public class CassandraClusterDao implements IClusterDao {
               cluster.getSeedHosts(),
               objectMapper.writeValueAsString(cluster.getProperties()),
               cluster.getState().name(),
-              Instant.ofEpochSecond(cluster.getLastContact().toEpochDay() * 24 * 60 * 60)));
+              lastContact));
     } catch (IOException e) {
       LOG.error("Failed serializing cluster information for database write", e);
       throw new IllegalStateException(e);

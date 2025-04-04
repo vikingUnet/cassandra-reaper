@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import brave.Tracing;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.Version;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.google.common.base.Preconditions;
 import io.dropwizard.cassandra.CassandraFactory;
 import io.dropwizard.core.setup.Environment;
@@ -74,7 +75,7 @@ final class MigrationManager {
         0 >= Version.parse("2.1").compareTo(version),
         "All Cassandra nodes in Reaper's backend storage must be running version 2.1+");
 
-    cassandraFactory.setSessionName("migration");
+    cassandraFactory.setSessionName("migration-" + Uuids.random());
     CqlSession cassandra = cassandraFactory.build(
           environment.metrics(),
           environment.lifecycle(),
@@ -139,7 +140,7 @@ final class MigrationManager {
         0 >= Version.parse("2.1").compareTo(version),
         "All Cassandra nodes in Reaper's backend storage must be running version 2.1+");
 
-    cassandraFactory.setSessionName("migration");
+    cassandraFactory.setSessionName("migration-" + Uuids.random());
     CqlSession cassandra = cassandraFactory.build(
           environment.metrics(),
           environment.lifecycle(),
@@ -178,7 +179,7 @@ final class MigrationManager {
     Preconditions.checkState(dbVersion < repository.getLatestVersion());
 
     for (int i = dbVersion + 1; i <= repository.getLatestVersion(); ++i) {
-      cassandraFactory.setSessionName("migration" + i);
+      cassandraFactory.setSessionName("migration" + Uuids.random());
       CqlSession cassandra = cassandraFactory.build(
             environment.metrics(),
             environment.lifecycle(),
