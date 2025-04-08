@@ -31,6 +31,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+// !!! add
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -45,10 +47,16 @@ import com.datastax.driver.core.Statement;
 import com.datastax.driver.core.exceptions.InvalidQueryException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+// !!! add
+// import com.google.common.collect.Sets;
 import org.joda.time.DateTime;
+// add
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CassandraRepairSegmentDao implements IRepairSegmentDao {
+  // !!! add
+  private static final Logger LOG = LoggerFactory.getLogger(CassandraRepairSegmentDao.class);
   public PreparedStatement insertRepairSegmentPrepStmt;
   public PreparedStatement insertRepairSegmentIncrementalPrepStmt;
   PreparedStatement updateRepairSegmentPrepStmt;
@@ -277,11 +285,15 @@ public class CassandraRepairSegmentDao implements IRepairSegmentDao {
   public List<RepairSegment> getNextFreeSegments(UUID runId) {
     List<RepairSegment> segments = Lists.<RepairSegment>newArrayList(getRepairSegmentsForRun(runId));
     Collections.shuffle(segments);
-
-    Set<String> lockedNodes = cassandraConcurrencyDao.getLockedNodesForRun(runId);
+    // !!! add
+    //Set<String> lockedNodes = cassandraConcurrencyDao.getLockedNodesForRun(runId);
+    Map<String, Long> lockedNodes = cassandraConcurrencyDao.getLockedNodesForRun(runId);
     List<RepairSegment> candidates = segments.stream()
         .filter(seg -> segmentIsCandidate(seg, lockedNodes))
         .collect(Collectors.toList());
+    // Логируем количество заблокированных узлов
+    LOG.info("Количество заблокированных узлов: {}", lockedNodes.size());
+
     return candidates;
   }
 
@@ -292,7 +304,8 @@ public class CassandraRepairSegmentDao implements IRepairSegmentDao {
     List<RepairSegment> segments
         = Lists.<RepairSegment>newArrayList(getRepairSegmentsForRun(runId));
     Collections.shuffle(segments);
-    Set<String> lockedNodes = cassandraConcurrencyDao.getLockedNodesForRun(runId);
+    // !!! add
+    Map<String, Long> lockedNodes = cassandraConcurrencyDao.getLockedNodesForRun(runId);
     List<RepairSegment> candidates = segments.stream()
         .filter(seg -> segmentIsCandidate(seg, lockedNodes))
         .filter(seg -> segmentIsWithinRanges(seg, ranges))
@@ -311,9 +324,28 @@ public class CassandraRepairSegmentDao implements IRepairSegmentDao {
     return false;
   }
 
+  /*
   private boolean segmentIsCandidate(RepairSegment seg, Set<String> lockedNodes) {
     return seg.getState().equals(RepairSegment.State.NOT_STARTED)
         && Sets.intersection(lockedNodes, seg.getReplicas().keySet()).isEmpty();
+  }
+  */
+  // !!! add
+  private boolean segmentIsCandidate(RepairSegment seg, Map<String, Long> lockedNodes) {
+    // Проверяем, что состояние сегмента равно NOT_STARTED
+    if (!seg.getState().equals(RepairSegment.State.NOT_STARTED)) {
+      return false;
+    }
+    // Итерируемся по ключам из seg.getReplicas().keySet()
+    for (String replica : seg.getReplicas().keySet()) {
+      // Проверяем, есть ли ключ в lockedNodes и больше ли его значение 4
+      if (lockedNodes.containsKey(replica) && lockedNodes.get(replica) >= 4) {
+        return false; // Если условие выполнено, возвращаем false
+      }
+    }
+    // Если ни одно из условий не выполнено, возвращаем true
+    // LOG.info("!!! segmentIsCandidate true !!!");
+    return true;
   }
 
   @Override

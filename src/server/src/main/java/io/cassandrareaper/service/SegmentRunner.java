@@ -242,17 +242,22 @@ final class SegmentRunner implements RepairStatusHandler, Runnable {
 
   @Override
   public void run() {
+    // !!! add
+    // LOG.info("!!! berore runRepair");
     boolean ran = false;
     RepairSegment segment = context.storage.getRepairSegmentDao().getRepairSegment(repairRunner.getRepairRunId(),
         segmentId).get();
     if (takeLead(segment)) {
+      // LOG.info("!!! takeLead(segment) = true");
       try {
         ran = runRepair();
       } finally {
         releaseLead(segment);
       }
     }
+    // LOG.info("!!! after runRepair");
     if (ran) {
+      // LOG.info("!!! if ran");
       long delay = intensityBasedDelayMillis(intensity);
       try {
         Thread.sleep(delay);
@@ -875,6 +880,8 @@ final class SegmentRunner implements RepairStatusHandler, Runnable {
       if (!result) {
         context.metricRegistry.counter(MetricRegistry.name(SegmentRunner.class, "takeLead", "failed")).inc();
       }
+      // !! add
+     // LOG.info("!!! takeLead: result: {}", result);
       return result;
     }
   }

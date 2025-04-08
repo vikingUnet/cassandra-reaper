@@ -50,6 +50,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+// !!! add
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -368,7 +370,8 @@ public final class CassandraStorageFacade implements IStorageDao, IDistributedSt
     return concurrency.getLockedSegmentsForRun(runId);
   }
 
-  public Set<String> getLockedNodesForRun(UUID runId) {
+  // !!! add
+  public Map<String, Long> getLockedNodesForRun(UUID runId) {
 
     return concurrency.getLockedNodesForRun(runId);
   }

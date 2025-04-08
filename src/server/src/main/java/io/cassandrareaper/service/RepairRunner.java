@@ -518,6 +518,7 @@ final class RepairRunner implements Runnable {
     // We have an empty slot, so let's start new segment runner if possible.
     // When in sidecar mode, filter on ranges that the local node is a replica for only.
     LOG.info("Attempting to run new segment...");
+    // LOG.info("!!! Макс число сегментов на ноду за раз: {}", context.config.getMaxParallelSegmentsRepairsOnEachNode());
     List<RepairSegment> nextRepairSegments
         = context.config.isInSidecarMode()
         ? ((IDistributedStorage) context.storage)
@@ -525,6 +526,8 @@ final class RepairRunner implements Runnable {
             repairRunId, localEndpointRanges)
         : context.storage.getRepairSegmentDao().getNextFreeSegments(
         repairRunId);
+    // !!! add
+    // LOG.info("!!! Количество элементов в nextRepairSegments: {}", nextRepairSegments.size());
 
     Optional<RepairSegment> nextRepairSegment = Optional.empty();
     final Collection<String> potentialReplicas = new HashSet<>();
@@ -717,7 +720,8 @@ final class RepairRunner implements Runnable {
         potentialCoordinators = filterPotentialCoordinatorsByDatacenters(
             repairUnit.getDatacenters(),
             clusterFacade.tokenRangeToEndpoint(cluster, keyspace, segment));
-
+        // !!! add
+        // LOG.info("!!! potentialCoordinators: {}", potentialCoordinators.size());
       } catch (RuntimeException e) {
         LOG.warn("Couldn't get token ranges from coordinator", e);
         return true;
@@ -751,7 +755,7 @@ final class RepairRunner implements Runnable {
           repairUnit,
           repairRun.getTables(),
           this);
-
+      // LOG.info("!!! segmentRunner 1");
       ListenableFuture<?> segmentResult = context.repairManager.submitSegment(segmentRunner);
       Futures.addCallback(
           segmentResult,
@@ -770,7 +774,7 @@ final class RepairRunner implements Runnable {
     } catch (ReaperException ex) {
       LOG.error("Executing SegmentRunner failed", ex);
     }
-
+    // LOG.info("!!! segmentRunner 2");
     return true;
   }
 

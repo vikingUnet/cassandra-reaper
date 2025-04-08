@@ -49,6 +49,10 @@ public final class ReaperApplicationConfiguration extends Configuration {
   private static final int DEFAULT_SEGMENT_COUNT_PER_NODE = 64;
   private static final Integer DEFAULT_MAX_PENDING_COMPACTIONS = 20;
 
+  // !!! add
+  @JsonProperty
+  private Integer maxParallelSegmentsRepairsOnEachNode;
+
   @JsonProperty
   private Integer maxPendingCompactions;
 
@@ -182,6 +186,23 @@ public final class ReaperApplicationConfiguration extends Configuration {
 
   @JsonProperty
   private Duration scheduleRetryDelay;
+
+  // !!! add
+  public Integer getMaxParallelSegmentsRepairsOnEachNode() {
+    return maxParallelSegmentsRepairsOnEachNode == null ? 1 : maxParallelSegmentsRepairsOnEachNode;
+  }
+
+  // !!! add
+  public void setMaxParallelSegmentsRepairsOnEachNode(Integer maxParallelSegmentsRepairsOnEachNode) {
+    // this.maxParallelSegmentsRepairsOnEachNode = maxParallelSegmentsRepairsOnEachNode;
+    if (maxParallelSegmentsRepairsOnEachNode == null || maxParallelSegmentsRepairsOnEachNode <= 0) {
+      this.maxParallelSegmentsRepairsOnEachNode = 1;
+    } else if (maxParallelSegmentsRepairsOnEachNode > 8) {
+      this.maxParallelSegmentsRepairsOnEachNode = 8;
+    } else {
+      this.maxParallelSegmentsRepairsOnEachNode = maxParallelSegmentsRepairsOnEachNode;
+    }
+  }
 
   public HttpManagement getHttpManagement() {
     return httpManagement;

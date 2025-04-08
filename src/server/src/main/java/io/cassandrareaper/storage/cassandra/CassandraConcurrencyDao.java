@@ -23,6 +23,8 @@ import io.cassandrareaper.core.RepairSegment;
 
 import java.util.List;
 import java.util.Set;
+// !!! add
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -53,6 +55,8 @@ public class CassandraConcurrencyDao {
   private PreparedStatement getRunningReapersCountPrepStmt;
   private PreparedStatement setRunningRepairsPrepStmt;
   private PreparedStatement getRunningRepairsPrepStmt;
+  // !!! add
+  private PreparedStatement setRunningRepairsPrepStmtHack;
 
   public CassandraConcurrencyDao(VersionNumber version, UUID reaperInstanceId, Session session) {
     this.version = version;
@@ -75,10 +79,19 @@ public class CassandraConcurrencyDao {
     releaseLeadPrepStmt = session.prepare("DELETE FROM leader WHERE leader_id = ? IF reaper_instance_id = ?")
         .setConsistencyLevel(ConsistencyLevel.QUORUM);
 
+    /*
     getRunningRepairsPrepStmt = session
         .prepare(
             "select repair_id, node, reaper_instance_host, reaper_instance_id, segment_id"
                 + " FROM running_repairs"
+                + " WHERE repair_id = ?")
+        .setConsistencyLevel(ConsistencyLevel.QUORUM);
+    */
+    // !!! add
+    getRunningRepairsPrepStmt = session
+        .prepare(
+            "select repair_id, node, reaper_instance_host, reaper_instance_id, segment_id"
+                + " FROM running_repairs_hack"
                 + " WHERE repair_id = ?")
         .setConsistencyLevel(ConsistencyLevel.QUORUM);
 
@@ -91,6 +104,16 @@ public class CassandraConcurrencyDao {
         .setConsistencyLevel(ConsistencyLevel.QUORUM)
         .setIdempotent(false);
     getRunningReapersCountPrepStmt = session.prepare(SELECT_RUNNING_REAPERS);
+
+    // !!! add
+    setRunningRepairsPrepStmtHack = session
+        .prepare(
+            "UPDATE running_repairs_hack USING TTL ?"
+                + " SET reaper_instance_host = ?, reaper_instance_id = ?"
+                + " WHERE repair_id = ? AND node = ? AND segment_id = ? IF reaper_instance_host = ?")
+        .setSerialConsistencyLevel(ConsistencyLevel.SERIAL)
+        .setConsistencyLevel(ConsistencyLevel.QUORUM)
+        .setIdempotent(false);
 
   }
 
@@ -198,7 +221,9 @@ public class CassandraConcurrencyDao {
 
     // Attempt to lock all the nodes involved in the segment
     BatchStatement batch = new BatchStatement();
+    /*
     for (String replica : replicas) {
+      // LOG.info("!!! setRunningRepairsPrepStmt 1: {}, {}, {}, {}, {}, {}, null", LEAD_DURATION, AppContext.REAPER_INSTANCE_ADDRESS, reaperInstanceId, segmentId, repairId, replica);
       batch.add(
           setRunningRepairsPrepStmt.bind(
               LEAD_DURATION,
@@ -209,12 +234,27 @@ public class CassandraConcurrencyDao {
               replica,
               null));
     }
-
-    ResultSet results = session.execute(batch);
-    if (!results.wasApplied()) {
-      logFailedLead(results, repairId, segmentId);
+    */
+    // !!! add
+    for (String replica : replicas) {
+      // LOG.info("!!! setRunningRepairsPrepStmtHack: {}, {}, {}, {}, {}, {}, null", LEAD_DURATION, AppContext.REAPER_INSTANCE_ADDRESS, reaperInstanceId, segmentId, repairId, replica);
+      batch.add(
+          setRunningRepairsPrepStmtHack.bind(
+              LEAD_DURATION,
+              AppContext.REAPER_INSTANCE_ADDRESS,
+              reaperInstanceId,
+              repairId,
+              replica,
+              segmentId,
+              null));
     }
-
+    ResultSet results = session.execute(batch);
+    // LOG.info("!!! results.wasApplied(): {}", results.wasApplied());
+    if (!results.wasApplied()) {
+      /// !!! add
+      // logFailedLead(results, repairId, segmentId);
+      return results.wasApplied();
+    }
     return results.wasApplied();
   }
 
@@ -226,6 +266,8 @@ public class CassandraConcurrencyDao {
     // Attempt to renew lock on all the nodes involved in the segment
     BatchStatement batch = new BatchStatement();
     for (String replica : replicas) {
+      // LOG.info("!!! setRunningRepairsPrepStmt 2: {}, {}, {}, {}, {}, {}, {}", LEAD_DURATION, AppContext.REAPER_INSTANCE_ADDRESS, reaperInstanceId, segmentId, repairId, replica, reaperInstanceId);
+      /*
       batch.add(
           setRunningRepairsPrepStmt.bind(
               LEAD_DURATION,
@@ -235,11 +277,24 @@ public class CassandraConcurrencyDao {
               repairId,
               replica,
               reaperInstanceId));
+      */
+      // !!! add
+      batch.add(
+          setRunningRepairsPrepStmtHack.bind(
+              LEAD_DURATION,
+              AppContext.REAPER_INSTANCE_ADDRESS,
+              reaperInstanceId,
+              repairId,
+              replica,
+              segmentId,
+              AppContext.REAPER_INSTANCE_ADDRESS));
     }
 
     ResultSet results = session.execute(batch);
     if (!results.wasApplied()) {
+      // !!! add
       logFailedLead(results, repairId, segmentId);
+      // return results.wasApplied();
     }
 
     return results.wasApplied();
@@ -275,6 +330,8 @@ public class CassandraConcurrencyDao {
     // Attempt to release all the nodes involved in the segment
     BatchStatement batch = new BatchStatement();
     for (String replica : replicas) {
+      // LOG.info("!!! setRunningRepairsPrepStmt 3 : {}, null, null, null, {}, {}, {}", LEAD_DURATION, repairId, replica, reaperInstanceId);
+      /*
       batch.add(
           //reaperInstanceId, AppContext.REAPER_INSTANCE_ADDRESS
           setRunningRepairsPrepStmt.bind(
@@ -285,6 +342,18 @@ public class CassandraConcurrencyDao {
               repairId,
               replica,
               reaperInstanceId));
+      */
+      // !!! add
+      batch.add(
+          //reaperInstanceId, AppContext.REAPER_INSTANCE_ADDRESS
+          setRunningRepairsPrepStmtHack.bind(
+              LEAD_DURATION,
+              null,
+              null,
+              repairId,
+              replica,
+              segmentId,
+              AppContext.REAPER_INSTANCE_ADDRESS));
     }
 
     ResultSet results = session.execute(batch);
@@ -307,7 +376,7 @@ public class CassandraConcurrencyDao {
         .collect(Collectors.toSet());
     return lockedSegments;
   }
-
+  /*
   public Set<String> getLockedNodesForRun(UUID runId) {
     ResultSet results
         = session.execute(getRunningRepairsPrepStmt.bind(runId));
@@ -317,6 +386,20 @@ public class CassandraConcurrencyDao {
         .filter(row -> row.getUUID("reaper_instance_id") != null)
         .map(row -> row.getString("node"))
         .collect(Collectors.toSet());
+    return lockedNodes;
+  }
+  */
+  // !!! add
+  public Map<String, Long> getLockedNodesForRun(UUID runId) {
+    ResultSet results = session.execute(getRunningRepairsPrepStmt.bind(runId));
+    Map<String, Long> lockedNodes = results.all()
+        .stream()
+        .filter(row -> row.getUUID("reaper_instance_id") != null)
+        .map(row -> row.getString("node"))
+        .collect(Collectors.groupingBy(node -> node, Collectors.counting()));
+    lockedNodes.forEach((node, count) -> {
+      // LOG.info("!!! Node: {}, Count: {}", node, count);
+    });
     return lockedNodes;
   }
 }
